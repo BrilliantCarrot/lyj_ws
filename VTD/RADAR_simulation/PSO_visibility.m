@@ -42,7 +42,6 @@ function [optimal_path, sir_data, sir_values] = PSO_visibility(sir_data, radars,
             % fprintf("%d 번째 반복입니다 \n.", iter);
             for i = 1:num_particles
                 % 현재 입자의 SIR 계산
-                % particle 위치 한개씩 계산
                 current_score = calculate_fitness(radars, particles(i, :), end_pos, visibility_matrix, RADAR, X, Y, Z);
                 % 개인 최적값 업데이트
                 if current_score < pbest_scores(i)
@@ -121,8 +120,7 @@ function particles = initialize_particles(current_point, end_point, num_particle
         offset = randn(1, 3) * radius; % 랜덤 오프셋 생성
         offset(3) = 0; % 수평 방향으로만 랜덤 오프셋을 추가
         particles(i, :) = current_point + offset + direction * radius * rand(); % 방향성을 추가한 초기화
-        % 고도(z)의 경우 헬기 고도를 고려하여 + 값을 추가
-        particles(i, 3) = calculate_Z(particles(i, 1), particles(i, 2), X, Y, Z) + 30;
+        particles(i, 3) = calculate_Z(particles(i, 1), particles(i, 2), X, Y, Z) + 30; % 고도 보정
     end
 end
 % 탐색 반경 내로 위치 제한

@@ -11,6 +11,9 @@ function sir = find_sir_multi(radars, target_pos, RADAR, X, Y, Z)
         sir_values(i) = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z);  
     end
     % 최대 SIR 값 반환
+    % 복수의 레이더 환경에서 최대값을 가지는 SIR을 이용하기 위함
+    % 단일 레이더의 경우 불필요
+    % sir = max(sir_values);
     sir = max(sir_values);
 end
 

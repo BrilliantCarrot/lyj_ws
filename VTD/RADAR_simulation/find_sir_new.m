@@ -23,26 +23,26 @@ function sig = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z)
     RelPos = target_pos - radar_pos;  % 레이더와 목표물 간 상대 위치
     Range = norm(RelPos);  % 거리 (Slant Range)
 
-    los_x = linspace(radar_pos(1), target_pos(1), 100);
-    los_y = linspace(radar_pos(2), target_pos(2), 100);
-    los_z = linspace(radar_pos(3), target_pos(3), 100);
-
-    % 연장된 LOS 벡터를 통해 목표물 뒤쪽의 지형 유무를 확인(상수값으로 거리 조정)
-    target_ext = target_pos + 1000 * (target_pos - radar_pos) / norm(target_pos - radar_pos);
-    los_x_ext = linspace(target_pos(1), target_ext(1), 100);
-    los_y_ext = linspace(target_pos(2), target_ext(2), 100);
-    los_z_ext = linspace(target_pos(3), target_ext(3), 100);
-
-    F = scatteredInterpolant(X(:), Y(:), Z(:), 'linear', 'none');
-    is_blocked = false;
-
-    for k = 1:length(los_z_ext)
-        terrain_z = F(los_x_ext(k), los_y_ext(k));
-        if ~isnan(terrain_z) && terrain_z > los_z_ext(k)
-            is_blocked = true;
-            break;
-        end
-    end
+    % los_x = linspace(radar_pos(1), target_pos(1), 100);
+    % los_y = linspace(radar_pos(2), target_pos(2), 100);
+    % los_z = linspace(radar_pos(3), target_pos(3), 100);
+    % 
+    % % 연장된 LOS 벡터를 통해 목표물 뒤쪽의 지형 유무를 확인(상수값으로 거리 조정)
+    % target_ext = target_pos + 1000 * (target_pos - radar_pos) / norm(target_pos - radar_pos);
+    % los_x_ext = linspace(target_pos(1), target_ext(1), 100);
+    % los_y_ext = linspace(target_pos(2), target_ext(2), 100);
+    % los_z_ext = linspace(target_pos(3), target_ext(3), 100);
+    % 
+    % F = scatteredInterpolant(X(:), Y(:), Z(:), 'linear', 'none');
+    % is_blocked = false;
+    % 
+    % for k = 1:length(los_z_ext)
+    %     terrain_z = F(los_x_ext(k), los_y_ext(k));
+    %     if ~isnan(terrain_z) && terrain_z > los_z_ext(k)
+    %         is_blocked = true;
+    %         break;
+    %     end
+    % end
 
     los_pitch = atan2(-RelPos(3), norm(RelPos(1:2)));
     los_yaw = atan2(RelPos(2), RelPos(1));
@@ -83,8 +83,8 @@ function sig = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z)
     SIR_dB = 10 * log10(SIR);
     sig = SIR_dB;
 
-    if is_blocked
-        sig = SIR_dB;
-    else
-        sig = SNR;
+    % if is_blocked
+    %     sig = SIR_dB;
+    % else
+    %     sig = SNR;
 end
