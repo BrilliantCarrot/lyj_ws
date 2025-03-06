@@ -51,7 +51,17 @@ load C:/Users/leeyj/lab_ws/data/VTD/RADAR/path_new.mat;
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/path.mat;
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/sir_data.mat;
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/visibility_matrix_sky.mat;
-
+%% 가시성까지 고려된 환경에서 PSO 테스트
+clc;
+radar_1 = [10000, 10000, 230]; % 단일 레이더의 경우
+radars = [10000, 10000, 230]; % 복수의 레이더 경우
+start_pos = [0, 0, 200];
+% end_pos = [1780, 5180, 450];
+end_pos = [25000,34000,80];
+% path = PSO_SIR_Optimization(radar_1, start_pos, end_pos, X, Y, Z, RADAR);
+[path, sir_data, sir_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
+%%
+visualize_PSO_SIR(path, sir_data, radar_1, X, Y, Z);
 %% 시각화
 figure;
 clf;
@@ -155,7 +165,7 @@ start_pos = [0, 0, 200];
 % end_pos = [1780, 5180, 450];
 end_pos = [25000,34000,80];
 % path = PSO_SIR_Optimization(radar_1, start_pos, end_pos, X, Y, Z, RADAR);
-[path, sir_data] = PSO_visibility(radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
+[path, sir_data, sir_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
 %%
 visualize_PSO_SIR(path, sir_data, radar_1, X, Y, Z);
 

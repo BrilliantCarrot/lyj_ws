@@ -1,4 +1,4 @@
-function [optimal_path, sir_data] = PSO_visibility(radars, start_pos, end_pos, X, Y, Z, RADAR, visibility_matrix)
+function [optimal_path, sir_data, sir_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR, visibility_matrix)
     % PSO 알고리즘을 정의한 함수
     % 레이더 피탐성이 최소가 되는 영역을 찾도록 함
     % 첫 번째 매개변수: 단일 레이더 좌표 radar_pos 혹은
@@ -14,13 +14,18 @@ function [optimal_path, sir_data] = PSO_visibility(radars, start_pos, end_pos, X
     c2 = 1.5;              % 전역 가속 계수
     optimal_path = start_pos;
     current_point = start_pos;
-    sir_data = {};
+
+    % sir_data = {};
+
     search_radius = 500;
     max_search_radius = 2000; % 정체 시 탐색 반경 증가
     min_distance = 30;
     max_stagnation = 3;
     stagnation_count = 0;
     previous_gbest_score = inf;
+
+    sir_values = []; % gbest위치의 sir을 저장할 빈 배열
+
 
     while norm(current_point - end_pos) > min_distance
         % 입자의 위치와 속도 초기화
@@ -34,6 +39,7 @@ function [optimal_path, sir_data] = PSO_visibility(radars, start_pos, end_pos, X
         % PSO 반복문
         % 반복문을 돌며 개별 입자 전체의 SIR 계산
         for iter = 1:max_iter
+            % fprintf("%d 번째 반복입니다 \n.", iter);
             for i = 1:num_particles
                 % 현재 입자의 SIR 계산
                 current_score = calculate_fitness(radars, particles(i, :), end_pos, visibility_matrix, RADAR, X, Y, Z);
@@ -76,16 +82,25 @@ function [optimal_path, sir_data] = PSO_visibility(radars, start_pos, end_pos, X
         % 다음 경로 점 업데이트
         current_point = gbest;
         optimal_path = [optimal_path; current_point];
-        % 현재 지형에서의 SIR 데이터 저장
-        sir_matrix = zeros(size(Z));
-        for i = 1:size(Z, 1)
-            for j = 1:size(Z, 2)
-                target_pos = [X(i, j), Y(i, j), Z(i, j)];
-                % 복수의 레이더의 경우 find_sir_multi 함수를 호출하여 모든 레이더 마다의 SIR을 계산
-                sir_matrix(i, j) = find_sir_multi(radars, target_pos, RADAR, X, Y, Z);
-            end
-        end
-        sir_data{end + 1} = sir_matrix;
+
+        % 전역 최적 점 위치에서의 SIR 계산 및 저장
+        current_sir = find_sir_multi(radars, current_point, RADAR, X, Y, Z);
+        sir_values = [sir_values; current_sir];
+
+
+
+
+        % % 현재 지형에서의 SIR 데이터 저장
+        % sir_matrix = zeros(size(Z));
+        % for i = 1:size(Z, 1)
+        %     for j = 1:size(Z, 2)
+        %         target_pos = [X(i, j), Y(i, j), Z(i, j)];
+        %         % 복수의 레이더의 경우 find_sir_multi 함수를 호출하여 모든 레이더 마다의 SIR을 계산
+        %         sir_matrix(i, j) = find_sir_multi(radars, target_pos, RADAR, X, Y, Z);
+        %     end
+        % end
+        % sir_data{end + 1} = sir_matrix;
+
         if abs(previous_gbest_score - gbest_score) < 1e-3
             stagnation_count = stagnation_count + 1;
         else
