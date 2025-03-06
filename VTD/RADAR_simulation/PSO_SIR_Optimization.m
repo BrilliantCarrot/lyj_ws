@@ -7,7 +7,7 @@ function [optimal_path, sir_data] = PSO_SIR_Optimization(radars, start_pos, end_
     % end_pos: 목표점 위치 [x, y, z]
     % X, Y, Z: 지형 데이터
     % RADAR: 레이더 구조체
-    visibility_map = 0;
+
     num_particles = 500;   % 입자 수 줄임 (더 작은 탐색 영역)
     max_iter = 50;         % 반복 수
     w = 0.7;               % 관성 계수
@@ -34,7 +34,7 @@ function [optimal_path, sir_data] = PSO_SIR_Optimization(radars, start_pos, end_
         velocities = zeros(size(particles));
         % 초기 개인 최적값 및 전역 최적값 설정
         pbest = particles;
-        pbest_scores = arrayfun(@(i) calculate_fitness(radars, particles(i, :), end_pos, visibility_map, RADAR, X, Y, Z), 1:num_particles)';
+        pbest_scores = arrayfun(@(i) calculate_fitness(radars, particles(i, :), end_pos, RADAR, X, Y, Z), 1:num_particles)';
         [gbest_score, gbest_idx] = min(pbest_scores);
         gbest = pbest(gbest_idx, :);
         % PSO 반복문
@@ -42,7 +42,7 @@ function [optimal_path, sir_data] = PSO_SIR_Optimization(radars, start_pos, end_
         for iter = 1:max_iter
             for i = 1:num_particles
                 % 현재 입자의 SIR 계산
-                current_score = calculate_fitness(radars, particles(i, :), end_pos, visibility_map, RADAR, X, Y, Z);
+                current_score = calculate_fitness(radars, particles(i, :), end_pos, RADAR, X, Y, Z);
                 % 개인 최적값 업데이트
                 if current_score < pbest_scores(i)
                     pbest_scores(i) = current_score;
@@ -137,86 +137,13 @@ end
 % 적합도(fitness) 계산 함수
 % SIR이 최소화하는 것과 동시에 목표점까지 직선 거리를 최대한 유지하도록 설계
 % 복수의 레이더 경우 find_sir_multi 적용
-function fitness = calculate_fitness(radars, particle_pos, end_pos, visibility_map, RADAR, X, Y, Z)
-    % SIR과 거리의 가중합을 통해 적합도 산출
-    % SIR 값 계산
-
-    % [gx, gy] = find_nearest_grid(particle_pos(1), particle_pos(2), X, Y, size(X, 1), size(X, 2));
-    
-    % 가시성 부분 필요할 경우 추후 수정
-    % if 안보이는 좌표일 경우
-    %     sir_value = 알맞게 수정
-    % else    % sir값을 적용
-    %     sir_value = find_sir_multi(radars, particle_pos, RADAR, X, Y, Z);
-    % end
+function fitness = calculate_fitness(radars, particle_pos, end_pos, RADAR, X, Y, Z)
     sir_value = find_sir_multi(radars, particle_pos, RADAR, X, Y, Z);
     % 목표점까지의 거리 계산
     distance_to_goal = norm(particle_pos - end_pos);
-
     % 목표점 도달 보상 (거리와 비례)
     % goal_reward = max(0, 1000 / distance_to_goal); % 가까워질수록 보상 증가
-
-    % 가시성이 없을 때 추가 페널티를 부여
-    % visibility_penalty = 0;
-    % if sir_value < -50 % SIR이 매우 낮은 경우(지형에 의해 가려진 경우)
-    %     visibility_penalty = -100; % 적절한 페널티 값 설정???
-    % end
-
     % SIR 가중치를 곱해 SIR이 낮더라도 목표점까지 가까워지도록 유도
     % 최적 경로가 SIR뿐만 아니라 목표점까지의 이동 효율성도 고려하여 탐색
     fitness = sir_value + 0.01 * distance_to_goal;
 end
-
-% function [gx, gy] = find_nearest_grid(x, y, X, Y, grid_rows, grid_cols)
-%     % x, y 좌표에 해당하는 가장 가까운 그리드 인덱스를 계산
-%     gx = max(1, min(grid_rows, find(abs(X(1, :) - x) == min(abs(X(1, :) - x), [], 'all'), 1)));
-%     gy = max(1, min(grid_cols, find(abs(Y(:, 1) - y) == min(abs(Y(:, 1) - y), [], 'all'), 1)));
-% end
-
-% function visible = is_visible_from_any_radar(radars, target_pos, X, Y, Z)
-%     % 복수의 레이더에서 목표지점이 가시성 있는지 확인
-%     visible = false;
-%     for i = 1:size(radars, 1)
-%         if check_los_visibility(radars(i, :), target_pos, X, Y, Z)
-%             visible = true;
-%             break;
-%         end
-%     end
-% end
-
-
-
-% function visible = check_los_visibility(radar_pos, target_pos, X, Y, Z)
-%     % 특정 레이더에서 목표 지점으로의 가시성 확인
-%     vec_x = linspace(radar_pos(1), target_pos(1), 100);
-%     vec_y = linspace(radar_pos(2), target_pos(2), 100);
-%     vec_z = linspace(radar_pos(3), target_pos(3), 100);
-% 
-%     visible = true;
-%     for k = 1:length(vec_x)
-%         px = vec_x(k);
-%         py = vec_y(k);
-%         pz = vec_z(k);
-%         terrain_alt = interp2(X, Y, Z, px, py, 'linear', NaN);
-%         if ~isnan(terrain_alt) && terrain_alt > pz
-%             visible = false;
-%             break;
-%         end
-%     end
-% end
-% 
-% 
-% function sir_matrix = calculate_sir_matrix_with_los(radars, X, Y, Z, RADAR)
-%     % 가시성 기반 SIR 행렬 생성
-%     sir_matrix = zeros(size(Z));
-%     for i = 1:size(Z, 1)
-%         for j = 1:size(Z, 2)
-%             target_pos = [X(i, j), Y(i, j), Z(i, j) + 100];
-%             if is_visible_from_any_radar(radars, target_pos, X, Y, Z)
-%                 sir_matrix(i, j) = find_sir_multi(radars, target_pos, RADAR);
-%             else
-%                 sir_matrix(i, j) = -100;
-%             end
-%         end
-%     end
-% end

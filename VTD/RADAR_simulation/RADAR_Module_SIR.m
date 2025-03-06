@@ -89,15 +89,10 @@ function [sig1,sigma_MBc, sigma_SLc,sigma_clutter2,SNR,SCR2,SIR_dB_air,Range] = 
     SIR_dB_air = 10 * log10(SIR2);
     % 만약 뒤가 막혀있다면 Airbone Radar 경우
     if block_check == true
-        sig1 = SIR_dB_air;
+        sig1 = SIR_dB_land;
     % 그렇지 않고 배경이 뚫려있다면 Ground Based Radar의 경우
     else
-        sig1 = SIR_dB_land;
+        % sig1 = SIR_dB_land;
+        sig1 = SNR;
     end
 end
-
-% 지표면 고도
-% radar_surface_alt = cal_alt(RADAR.RadarPos(lambda_num,1), RADAR.RadarPos(lambda_num,2), X, Y, Z);
-% radar_height_above_surface = RADAR.RadarPos(lambda_num,3) - radar_surface_alt;
-% target_surface_alt = cal_alt(PosN(1), PosN(2), X, Y, Z);
-% height_above_surface = PosN(3) - target_surface_alt;

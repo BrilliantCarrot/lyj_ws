@@ -8,7 +8,7 @@ function sir = find_sir_multi(radars, target_pos, RADAR, X, Y, Z)
     sir_values = -inf(num_radars, 1); % 기본값 -infinity로 초기화
     for i = 1:num_radars
         radar_pos = radars(i, :);
-        sir_values(i) = find_sir(radar_pos, target_pos, RADAR);  
+        sir_values(i) = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z);  
     end
     % 최대 SIR 값 반환
     sir = max(sir_values);

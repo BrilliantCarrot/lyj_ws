@@ -146,8 +146,8 @@ ylabel('Y [km]');
 zlabel('Altitude (meters)');
 legend('Visible Terrain SIR', 'Non-visible Terrain (Gray)', 'Radar');
 %% 특정 지역의 가시성 결과 시각화
-% target_1 = double([15869.5, 4359.59, 190]);
-% LOS_test_single(radar_1,target_1,X,Y,Z);
+target_1 = double([14922, 21354, 122]);
+LOS_test_single(radar_1,target_1,X,Y,Z);
 %% PSO 
 % clc;
 % radar_1 = [10000, 10000, 230]; % 단일 레이더의 경우
