@@ -42,7 +42,7 @@ RADAR.SL_rms = 10^(-20.10);  % RMS Sidelobe Level
 RADAR.R_e = 6.371e6;  % Earth Radius (m)
 RADAR.c = 3e8;  % Speed of Light (m/s)
 RADAR.prf = 1000; % [Hz] Pulse repetition frequency
-RADAR.Du = RADAR.tau * RADAR.prf;
+RADAR.Du = RADAR.tau * RADAR.prf;13
 rcs_table = RADAR.RCS1;
 radar_1 = double([10000, 10000, 230]);  % 레이더1 위치
 % radar_2 = [14000, 14000, 300];  % 레이더2 위치
@@ -59,8 +59,16 @@ start_pos = [0, 0, 200];
 % end_pos = [1780, 5180, 450];
 end_pos = [25000,34000,80];
 % path = PSO_SIR_Optimization(radar_1, start_pos, end_pos, X, Y, Z, RADAR);
-[path, sir_data, sir_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
-%%
+[path, sir_data, sir_values, visibility_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
+%% path와 sir_data 길이 맞추고 시각화
+num_waypoints = size(path, 1);
+current_sir_data_length = length(sir_data);
+if current_sir_data_length < num_waypoints
+    last_sir_matrix = sir_data{end}; % sir_data의 마지막 데이터 복사
+    for k = (current_sir_data_length+1):num_waypoints
+        sir_data{k} = last_sir_matrix; % 부족한 부분에 동일 데이터 채우기
+    end
+end
 visualize_PSO_SIR(path, sir_data, radar_1, X, Y, Z);
 %% 시각화
 figure;

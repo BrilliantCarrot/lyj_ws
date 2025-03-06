@@ -1,4 +1,4 @@
-function [optimal_path, sir_data, sir_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR, visibility_matrix)
+function [optimal_path, sir_data, sir_values, visibility_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR, visibility_matrix)
     % PSO 알고리즘을 정의한 함수
     % 레이더 피탐성이 최소가 되는 영역을 찾도록 함
     % 첫 번째 매개변수: 단일 레이더 좌표 radar_pos 혹은
@@ -25,11 +25,12 @@ function [optimal_path, sir_data, sir_values] = PSO_visibility(sir_data, radars,
     previous_gbest_score = inf;
 
     sir_values = []; % gbest위치의 sir을 저장할 빈 배열
-
+    visibility_values = [];
+    F = scatteredInterpolant(X(:), Y(:), Z(:), 'linear', 'none'); % 고도 추출을 위한 선형 보간
 
     while norm(current_point - end_pos) > min_distance
         % 입자의 위치와 속도 초기화
-        particles = initialize_particles(current_point, end_pos, num_particles, search_radius, X, Y, Z);
+        particles = initialize_particles(current_point, end_pos, num_particles, search_radius, X, Y, Z,F);
         velocities = zeros(size(particles));
         % 초기 개인 최적값 및 전역 최적값 설정
         pbest = particles;
@@ -63,7 +64,7 @@ function [optimal_path, sir_data, sir_values] = PSO_visibility(sir_data, radars,
                                    c2 * r2 * (gbest - particles(i, :));
                 particles(i, :) = particles(i, :) + velocities(i, :);
                 % 업데이트된 입자의 위치를 탐색 반경 내로 제한하여 생성되도록 함
-                particles(i, :) = constrain_to_radius(current_point, particles(i, :), search_radius, X, Y, Z);
+                particles(i, :) = constrain_to_radius(current_point, particles(i, :), search_radius, X, Y, Z,F);
             end
             % 정체 상황(경로 계획이 막힘) 처리: 정체 시 탐색 반경 확장
             if stagnation_count >= max_stagnation
@@ -87,7 +88,12 @@ function [optimal_path, sir_data, sir_values] = PSO_visibility(sir_data, radars,
         current_sir = find_sir_multi(radars, current_point, RADAR, X, Y, Z);
         sir_values = [sir_values; current_sir];
 
-
+        % 현재 경로점(gbest)의 가시성 여부 체크
+        [~, ix] = min(abs(X(1, :) - gbest(1)));
+        [~, iy] = min(abs(Y(:, 1) - gbest(2)));
+        
+        visibility_status = visibility_matrix(iy, ix);  % 0 = 안 보임, 1 = 보임
+        visibility_values = [visibility_values; visibility_status];  % 경로점 가시성 기록
 
 
         % % 현재 지형에서의 SIR 데이터 저장
@@ -113,30 +119,37 @@ function [optimal_path, sir_data, sir_values] = PSO_visibility(sir_data, radars,
     end
 end
 % 입자 초기화 함수
-function particles = initialize_particles(current_point, end_point, num_particles, radius, X, Y, Z)
+function particles = initialize_particles(current_point, end_point, num_particles, radius, X, Y, Z,F)
     particles = zeros(num_particles, 3);
     direction = (end_point - current_point) / norm(end_point - current_point); % 방향 벡터 계산
     for i = 1:num_particles
         offset = randn(1, 3) * radius; % 랜덤 오프셋 생성
         offset(3) = 0; % 수평 방향으로만 랜덤 오프셋을 추가
         particles(i, :) = current_point + offset + direction * radius * rand(); % 방향성을 추가한 초기화
-        particles(i, 3) = calculate_Z(particles(i, 1), particles(i, 2), X, Y, Z) + 30; % 고도 보정
+        particles(i, 3) = calculate_Z(particles(i, 1), particles(i, 2), X, Y, Z,F) + 30; % 고도 보정
     end
 end
 % 탐색 반경 내로 위치 제한
 % 입자가 탐색 반경을 벗어나는 경우 반경 내 가장자리로 제한
-function position = constrain_to_radius(center, position, radius, X, Y, Z)
+function position = constrain_to_radius(center, position, radius, X, Y, Z,F)
     if norm(position - center) > radius
         direction = (position - center) / norm(position - center);
         position = center + direction * radius;
     end
-    position(3) = calculate_Z(position(1), position(2), X, Y, Z) + 30; % 고도 보정
+    position(3) = calculate_Z(position(1), position(2), X, Y, Z,F) + 30; % 고도 보정
 end
 % x,y 좌표에서 맞는 고도 z값을 산출
-function z = calculate_Z(x, y, X, Y, Z)
+function z = calculate_Z(x, y, X, Y, Z, F)
     [~, ix] = min(abs(X(1, :) - x));
     [~, iy] = min(abs(Y(:, 1) - y));
     z = Z(iy, ix);
+    % 보간 적용 테스트
+    % z = F(x, y);
+    % if isnan(z)
+    %     distances = sqrt((X(:) - x).^2 + (Y(:) - y).^2);
+    %     [~, idx] = min(distances);
+    %     z = Z(idx);
+    % end
 end
 % 적합도(fitness) 계산 함수
 % SIR이 최소화하는 것과 동시에 목표점까지 직선 거리를 최대한 유지하도록 설계
@@ -146,6 +159,10 @@ function fitness = calculate_fitness(radars, particle_pos, end_pos, visibility_m
     distance_to_goal = norm(particle_pos - end_pos);
     [~, ix] = min(abs(X(1, :) - particle_pos(1)));
     [~, iy] = min(abs(Y(:, 1) - particle_pos(2)));
+    % 보간 적용 테스트
+    % distances = (X - particle_pos(1)).^2 + (Y - particle_pos(2)).^2;
+    % [~, minIdx] = min(distances(:));
+    % [iy, ix] = ind2sub(size(X), minIdx);
     visibility_bonus = 0;
     if visibility_matrix(iy, ix) == 0  % 가려진 영역이면 보상 부여
         visibility_bonus = -5;
