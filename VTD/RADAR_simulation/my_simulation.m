@@ -60,7 +60,7 @@ start_pos = [0, 0, 200];
 end_pos = [25000,34000,80];
 % path = PSO_SIR_Optimization(radar_1, start_pos, end_pos, X, Y, Z, RADAR);
 [path, sir_data, sir_values, visibility_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
-%% path와 sir_data 길이 맞추고 시각화
+%% path와 sir_data 길이 맞춤
 num_waypoints = size(path, 1);
 current_sir_data_length = length(sir_data);
 if current_sir_data_length < num_waypoints
@@ -69,7 +69,30 @@ if current_sir_data_length < num_waypoints
         sir_data{k} = last_sir_matrix; % 부족한 부분에 동일 데이터 채우기
     end
 end
-visualize_PSO_SIR(path, sir_data, radar_1, X, Y, Z);
+%% 
+radar_1 = [10000, 10000, 230];
+load C:/Users/leeyj/lab_ws/data/VTD/RADAR/output_map.mat;
+X = MAP.X; % X 좌표
+Y = MAP.Y; % Y 좌표
+Z = MAP.alt; % 고도
+x_min = 0; x_max = 30000;
+y_min = 0; y_max = 40000;
+% X와 Y 범위에 해당하는 인덱스 계산
+x_idx = (X(1, :) >= x_min) & (X(1, :) <= x_max);
+y_idx = (Y(:, 1) >= y_min) & (Y(:, 1) <= y_max);
+X = double(X(y_idx, x_idx));
+Y = double(Y(y_idx, x_idx));
+Z = double(Z(y_idx, x_idx));
+dx = 10;
+dy = 10;
+% 자른 간격으로 지형 단순화
+X_reduced = X(1:dy:end, 1:dx:end); % X 데이터 축소
+Y_reduced = Y(1:dy:end, 1:dx:end); % Y 데이터 축소
+Z = Z(1:dy:end, 1:dx:end); % Z 데이터 축소
+% 정규화 및 Y 좌표 방향 수정
+X = X_reduced - min(min(X_reduced)); % X 좌표를 0부터 시작
+Y = Y_reduced - min(min(Y_reduced)); % Y 좌표를 0부터 시작
+visualize_PSO_SIR_2(path, sir_data, sir_values, visibility_values, radar_1, X, Y, Z);
 %% 시각화
 figure;
 clf;
