@@ -1,5 +1,5 @@
 %% Psuedo 6 DoF Simulation
-% simulation for heliocopter case only
+% simulation for heliocopter case
 clc; 
 clear; 
 close all;
@@ -46,23 +46,50 @@ sum_k_m = sum_k;
 sum_k_t = sum_k;
 
 %% ode 45를 통한 시뮬레이션 수행
+close all;
 
 [t_m, xm_record] = ode45(@(t, xm) missile_dynamics(t, xm, xt0, N), tspan, xm0);
 [t_t, xt_record] = ode45(@(t, xt) target_dynamics(t, xt, xm0, N), tspan, xt0);
 
 figure;
-plot3(xm_record(:,1), xm_record(:,2), xm_record(:,3), 'b', 'LineWidth', 2);
+plot3(xm_record(:,1), xm_record(:,2), xm_record(:,3), 'black', 'LineWidth', 2);
 hold on;
-plot3(xt_record(:,1), xt_record(:,2), xt_record(:,3), 'r', 'LineWidth', 2);
+% plot3(xt_record(:,1), xt_record(:,2), xt_record(:,3), 'r', 'LineWidth', 2);
 plot3(r_m0(1), r_m0(2), r_m0(3), 'bp', 'MarkerSize', 10, 'LineWidth', 2);
 plot3(r_t0(1), r_t0(2), r_t0(3), 'rp', 'MarkerSize', 10, 'LineWidth', 2);
-legend({'미사일 궤적', '타겟 궤적', '미사일 초기 위치', '타겟 초기 위치'}, 'Location', 'northwest');
+legend({'미사일 궤적', '미사일 초기 위치', '타겟 초기 위치'}, 'Location', 'northwest');
 xlabel('x [m]');
 ylabel('y [m]');
 zlabel('z [m]');
 grid on;
 title("PPN 적용 시뮬레이션 결과");
 hold off;
+figure;
+subplot(4,1,1);
+plot(t_m, xm_record(:,4), 'b', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('x 방향 속도 [m/s]');
+title('미사일 x 방향 속도 변화');
+grid on;
+subplot(4,1,2);
+plot(t_m, xm_record(:,5), 'r', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('y 방향 속도 [m/s]');
+title('미사일 y 방향 속도 변화');
+grid on;
+subplot(4,1,3);
+plot(t_m, xm_record(:,6), 'g', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('z 방향 속도 [m/s]');
+title('미사일 z 방향 속도 변화');
+grid on;
+subplot(4,1,4);
+speed_norm = vecnorm(xm_record(:,4:6), 2, 2); % 속도 벡터의 norm 계산
+plot(t_m, speed_norm, 'k', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('vector norm [m/s]');
+title('미사일 속력 변화');
+grid on;
 
 %% PPN 시뮬레이션 수행 - RK4 함수 이용
 
