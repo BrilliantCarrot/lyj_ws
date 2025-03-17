@@ -165,4 +165,25 @@ public class Person: object{
     public Person ProcreateWith(Person partner){
         return Procreate(this,partner);
     }
+
+    public static Person operator *(Person p1, Person p2){
+        return Person.Procreate(p1, p2);
+    }
+
+    // method with a local function 
+    public static int Factorial(int number)
+    {
+        if (number < 0)
+        {
+        throw new ArgumentException(
+            $"{nameof(number)} cannot be less than zero.");
+        }
+        return localFactorial(number);
+
+        int localFactorial(int localNumber) // local function
+        {
+        if (localNumber < 1) return 1;
+        return localNumber * localFactorial(localNumber - 1);
+        }
+    }
 }

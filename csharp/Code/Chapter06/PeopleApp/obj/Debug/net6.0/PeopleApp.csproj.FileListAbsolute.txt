@@ -11,9 +11,9 @@ C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\bin\Debug\net6.0\PeopleApp
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\bin\Debug\net6.0\PeopleApp.pdb
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\bin\Debug\net6.0\PacktLibrary.dll
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\bin\Debug\net6.0\PacktLibrary.pdb
-C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\obj\Debug\net6.0\PeopleApp.csproj.Up2Date
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\obj\Debug\net6.0\PeopleApp.dll
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\obj\Debug\net6.0\refint\PeopleApp.dll
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\obj\Debug\net6.0\PeopleApp.pdb
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\obj\Debug\net6.0\PeopleApp.genruntimeconfig.cache
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\obj\Debug\net6.0\ref\PeopleApp.dll
+C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PeopleApp\obj\Debug\net6.0\PeopleApp.csproj.CopyComplete

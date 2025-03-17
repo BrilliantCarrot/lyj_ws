@@ -10,3 +10,4 @@ C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PacktLibrary\obj\Debug\net6.0\PacktL
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PacktLibrary\obj\Debug\net6.0\refint\PacktLibrary.dll
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PacktLibrary\obj\Debug\net6.0\PacktLibrary.pdb
 C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PacktLibrary\obj\Debug\net6.0\ref\PacktLibrary.dll
+C:\Users\leeyj\lyj_ws\csharp\Code\Chapter06\PacktLibrary\obj\Debug\net6.0\PacktLibrary.csproj.AssemblyReference.cache
