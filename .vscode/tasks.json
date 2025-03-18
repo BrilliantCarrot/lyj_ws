@@ -1,4 +1,5 @@
 {
+    
     "tasks": [
         {
             "type": "cppbuild",
@@ -10,7 +11,9 @@
                 "${file}",
                 "-std=c++23",
                 "-o",
-                "${fileDirname}\\${fileBasenameNoExtension}.exe"
+                "${fileDirname}\\${fileBasenameNoExtension}.exe",
+                
+
             ],
             "options": {
                 "cwd": "${fileDirname}"
