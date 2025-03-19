@@ -1,4 +1,4 @@
-// #include <iostream>
+#include <iostream>
 
 
 // static 멤버 변수
@@ -53,13 +53,52 @@
 //     return 0;
 // }
 
+// 함수 인자로 레퍼런스 받기
+int change_val(int & p){
+    p = 3;
+}
+// const를 이용한 예외 규칙
+int function() {
+    int a = 5;
+    return a;
+    }
 
-#include <iostream>
 
 int main(){
-    std::cout << "hi" << std::endl
-    << "my name is "
-    << "Psi" << std::endl;
+    // std::cout << "hi" << std::endl
+    // << "my name is "
+    // << "Psi" << std::endl;
+    
+
+    // int number = 5;
+    // std::cout << number << std::endl;
+    // change_val(number);
+    // std::cout << number << std::endl;
+
+
+    // 배열 형태로 사용
+    // int arr[3] = {1, 2, 3};
+    // int(&ref)[3] = arr;
+    // ref[0] = 2;
+    // ref[0] = 3;
+    // ref[0] = 1;
+    // std::cout << arr[0] << arr[1] << arr[2] << std::endl;
+
+
+    // const int& c = function();
+    // std::cout << "c : " << c << std::endl;
+    
+
+    int *p = new int;
+    *p = 10;
+    std::cout << *p << std::endl;
+    delete p;
+
+
+
+
+
+
     return 0;
 }
 
