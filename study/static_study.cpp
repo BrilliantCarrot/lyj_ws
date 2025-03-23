@@ -129,29 +129,92 @@ int function() {
   // 달력 클래스
   class Date {
     int year_;
-    int month_;  // 1 부터 12 까지.
-    int day_;    // 1 부터 31 까지.
-  
-   public:
-    void SetDate(int year, int month, int date){
-      // 날짜가 한 달 안에 포함되는지를 확인하는 함수
+    int month_;  // 1부터 12까지
+    int day_;    // 1부터 31까지
+
+    // 해당 연도의 윤년 여부 판단 (윤년이면 2월은 29일까지)
+    bool IsLeapYear(int year) {
+        return (year % 400 == 0) || ((year % 4 == 0) && (year % 100 != 0));
+    }
+
+    // 주어진 연도와 월에 맞는 일수를 반환
+    int DaysInMonth(int year, int month) {
+        switch(month) {
+            case 2: return IsLeapYear(year) ? 29 : 28;
+            case 4: case 6: case 9: case 11: return 30;
+            default: return 31;
+        }
+    }
+
+public:
+    // 디폴트 생성자: 기본 날짜를 2000년 1월 1일로 설정
+    Date() : year_(2000), month_(1), day_(1) { }
+
+    Date(int year, int month, int day){
+      std::cout << "인자 3개인 생성자 호출" << std::endl;
       year_ = year;
       month_ = month;
-      day_ = date;
-    };
-    void AddDay(int inc){
-      //더하려는 날짜가 한 달 안에 포함되있는지를 확인하는 함수
-    };
-    void AddMonth(int inc);
-      // 12월을 넘는지를 확인하는 계산 
-    void AddYear(int inc){
-      year_ += inc;
-    };
-    
-    void ShowDate(){
-      std::cout << year_ << "년" << month_ << "월" << day_ << "일입니다." << std::endl;
-    };
-  };
+      day_ = day;
+    }
+
+    // 날짜 초기화
+    void SetDate(int year, int month, int day) {
+        year_ = year;
+        month_ = month;
+        day_ = day;
+    }
+
+    // 일 수 만큼 더하는 함수
+    void AddDay(int inc) {
+        day_ += inc;
+        // day_가 현재 월의 일수를 초과하는 경우 다음 달로 넘김
+        while(day_ > DaysInMonth(year_, month_)) {
+            day_ -= DaysInMonth(year_, month_);
+            AddMonth(1);
+        }
+        // 만약 음수가 되는 경우 (여기서는 주로 양수 증가를 가정)
+        while(day_ <= 0) {
+            AddMonth(-1);
+            day_ += DaysInMonth(year_, month_);
+        }
+    }
+
+    // 월 수 만큼 더하는 함수
+    void AddMonth(int inc) {
+        int totalMonths = month_ + inc;
+        if(totalMonths > 0) {
+            // 총 개월수를 12로 나눈 몫은 연도에, 나머지는 월에 반영
+            year_ += (totalMonths - 1) / 12;
+            month_ = (totalMonths - 1) % 12 + 1;
+        } else {
+            // 음수 혹은 0일 때: (예: 1월에서 -1월 하면 12월 전년으로)
+            int n = (-totalMonths) / 12 + 1;
+            year_ -= n;
+            totalMonths += n * 12;
+            month_ = totalMonths;
+        }
+        // 현재 일(day_)이 새 월의 최대 일수보다 크면 조정
+        int dim = DaysInMonth(year_, month_);
+        if(day_ > dim)
+            day_ = dim;
+    }
+
+    // 연 수 만큼 더하는 함수
+    void AddYear(int inc) {
+        year_ += inc;
+        // 2월 29일인 경우, 윤년이 아니면 28일로 조정
+        if(month_ == 2 && day_ == 29 && !IsLeapYear(year_))
+            day_ = 28;
+    }
+
+    // 함수 선언만 객체 내부에 하고 정의는 밖에 해도됨
+    void ShowDate();
+};
+
+    // 날짜 출력 함수, 정의를 밖에 함
+    void Date::ShowDate() {
+      std::cout << year_ << "년 " << month_ << "월 " << day_ << "일" << std::endl;
+  }
 
 int main(){
     //   
@@ -159,22 +222,26 @@ int main(){
   
   
     // 날짜 과제
-    // Date date;
-    // int year, month, day;
-    // std::cout << "날짜 프로그램" << std::endl;
+    Date d;
+    int year, month, day;
+    std::cout << "날짜 프로그램" << std::endl;
     
     // while(true){
     //   std::cout << "연도 입력: " << std::endl;
     //   std::cin >> year;
-    //   date.AddYear(year);
+    //   d.AddYear(year);
     //   std::cout << "월 입력: " << std::endl;
     //   std::cin >> month;
     //   // 월 입력 처리 부분(날짜 확인 포함함)
-    //   date.AddMonth(month);
+    //   d.AddMonth(month);
     //   std::cout << "날짜 입력: " << std::endl;
     //   std::cin >> day;
-    //   date.AddDay(day);
-    // }
+    //   d.AddDay(day);
+
+    Date day2(2012, 10, 31);
+    day2.ShowDate();
+    return 0;
+    
 
 
 
@@ -271,6 +338,6 @@ int main(){
     // animal.view_stat();
 
 
-    // return 0;
+
 }
 
