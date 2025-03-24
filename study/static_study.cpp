@@ -1,5 +1,5 @@
 #include <iostream>
-
+# include <string.h>
 
 // static 멤버 변수
 // void counter() {
@@ -216,16 +216,128 @@ public:
       std::cout << year_ << "년 " << month_ << "월 " << day_ << "일" << std::endl;
   }
 
-int main(){
-    //   
+
+  // class Point{
+  //   int x, y;
+
+  //   public:
+  //     Point(int pos_x, int pos_y);
+  // };
+
+  // class Geometry{
+  //   private:
+  //     int num_points;
+  //     Point *point_array[100];
+
+  //   public:
+
+  //     Geometry() : num_points(0) {}
+  //     void AddPoint(const Point & point){
+  //       point_array[num_points++] = new Point(point.x, point.y);
+  //     }
+  //     // 모든 점들 간의 거리를 출력하는 함수
+  //     void PrintDistance(){
+
+  //     }
+  //     // 모든 점들을 잇는 직선들 간의 교점의 수를 출력해주는 함수 입니다.
+  //     // 참고적으로 임의의 두 점을 잇는 직선의 방정식을 f(x,y) = ax+by+c = 0
+  //     // 이라고 할 때 임의의 다른 두 점 (x1, y1) 과 (x2, y2) 가 f(x,y)=0 을 기준으로
+  //     // 서로 다른 부분에 있을 조건은 f(x1, y1) * f(x2, y2) <= 0 이면 됩니다.
+  //     void PrintNumMeets(){
+
+  //     }
+  // };
+
+
+  // 스타크래프트
+  class Marine{
+    private:
+      int hp;
+      int coord_x, coord_y;
+      int damage;
+      bool is_dead;
+      char *name;
+
+    public:
+      Marine();
+      Marine(int x, int y);
+      Marine(int x, int y, const char *marine_name);
+
+      int attack();
+      void be_attacked(int damage_earn);
+      void move(int x, int y);
+
+      void show_status();
+
+  };
+  Marine::Marine(){
+    hp = 50;
+    coord_x, coord_y = 0;
+    damage = 5;
+    is_dead = false;
+  }
+  Marine::Marine(int x, int y) {
+    coord_x = x;
+    coord_y = y;
+    hp = 50;
+    damage = 5;
+    is_dead = false;
+    name = NULL;
+  }
+  Marine::Marine(int x, int y, const char* marine_name) {
+    name = new char[strlen(marine_name) + 1];
+    strcpy(name, marine_name);
   
-  
+    coord_x = x;
+    coord_y = y;
+    hp = 50;
+    damage = 5;
+    is_dead = false;
+  }
+  void Marine::move(int x, int y) {
+    coord_x = x;
+    coord_y = y;
+  }
+  int Marine::attack() { return damage; }
+  void Marine::be_attacked(int damage_earn) {
+    hp -= damage_earn;
+    if (hp <= 0) is_dead = true;
+  }
+  void Marine::show_status() {
+    std::cout << " *** Marine : " << name << " ***" << std::endl;
+    std::cout << " Location : ( " << coord_x << " , " << coord_y << " ) "
+              << std::endl;
+    std::cout << " HP : " << hp << std::endl;
+  }
+
+  int main()
+  {
+    // 스타크래프트
+    // Marine marine1(2, 3);
+    // Marine marine2(3, 5);
+    // marine1.show_status();
+    // marine2.show_status();
+    // std::cout << std::endl << "마린 1 이 마린 2 를 공격! " << std::endl;
+    // marine2.be_attacked(marine1.attack());
+    // marine1.show_status();
+    // marine2.show_status();
+
+    Marine* marines[100];
+    marines[0] = new Marine(2, 3, "Marine 2");
+    marines[1] = new Marine(1, 5, "Marine 1");
+    marines[0]->show_status();
+    marines[1]->show_status();
+    std::cout << std::endl << "마린 1 이 마린 2 를 공격! " << std::endl;
+    marines[0]->be_attacked(marines[1]->attack());
+    marines[0]->show_status();
+    marines[1]->show_status();
+    delete marines[0];
+    delete marines[1];
   
     // 날짜 과제
-    Date d;
-    int year, month, day;
-    std::cout << "날짜 프로그램" << std::endl;
-    
+    // Date d;
+    // int year, month, day;
+    // std::cout << "날짜 프로그램" << std::endl;
     // while(true){
     //   std::cout << "연도 입력: " << std::endl;
     //   std::cin >> year;
@@ -237,12 +349,8 @@ int main(){
     //   std::cout << "날짜 입력: " << std::endl;
     //   std::cin >> day;
     //   d.AddDay(day);
-
-    Date day2(2012, 10, 31);
-    day2.ShowDate();
-    return 0;
-    
-
+    // Date day2(2012, 10, 31);
+    // day2.ShowDate();
 
 
     // std::cout << "hi" << std::endl
@@ -337,7 +445,6 @@ int main(){
 
     // animal.view_stat();
 
-
-
+    return 0;
 }
 
