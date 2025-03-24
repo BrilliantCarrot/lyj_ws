@@ -262,6 +262,7 @@ public:
       Marine();
       Marine(int x, int y);
       Marine(int x, int y, const char *marine_name);
+      ~Marine(); // 소멸자는 인자를 아무것도 가지지 않는다
 
       int attack();
       void be_attacked(int damage_earn);
@@ -309,6 +310,14 @@ public:
               << std::endl;
     std::cout << " HP : " << hp << std::endl;
   }
+  Marine::~Marine(){
+    std::cout << name << "의 소멸자 호출! " << std::endl;
+    if (name != NULL){
+      delete[] name;
+    }
+  }
+
+
 
   int main()
   {
