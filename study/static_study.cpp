@@ -318,9 +318,112 @@ public:
   }
 
 
+  class Test {
+    char c;
+  
+   public:
+    Test(char _c) {
+      c = _c;
+      std::cout << "생성자 호출 " << c << std::endl;
+    }
+    ~Test() { std::cout << "소멸자 호출 " << c << std::endl; }
+  };
+  void simple_function() { Test b('b'); }
+
+
+  class Photon_Cannon{
+    private:
+      int hp, shield;
+      int coord_x, coord_y;
+      int damage;
+      char * name;
+    public:
+      Photon_Cannon(int x, int y);
+      Photon_Cannon(const Photon_Cannon &pc);
+      Photon_Cannon(int x, int y, const char *cannon_name);
+      ~Photon_Cannon();
+
+      void show_status();
+  };
+  Photon_Cannon::Photon_Cannon(int x, int y) {
+    std::cout << "생성자 호출 !" << std::endl;
+    hp = shield = 100;
+    coord_x = x;
+    coord_y = y;
+    damage = 20;
+    name = NULL; // 소멸자 호출시 같은 메모리를 가르키는걸 방지하기 위해 이름을 동적 할당
+  }
+  
+  // 복사 생성자에 대한 정의, 객체를 복사할 때 호출
+  // const 선언으로 전달된 객체를 변경하지 않겠다는 의미. pc 값을 읽기만 하고 수정하지 않음
+  // 복사 생성자의 표준적인 정의 T(const T& a);
+  // 단순한 1:1 복사의 경우 디폴트 복사 생성자가 그 역할을 한다
+  Photon_Cannon::Photon_Cannon(const Photon_Cannon & pc){
+    std::cout << "복사 생성자 호출!" << std::endl;
+    hp = pc.hp;
+    shield = pc.shield;
+    coord_x = pc.coord_x;
+    coord_y = pc.coord_y;
+    damage = pc.damage;
+    // 소멸자 호출시 같은 메모리를 가르키는걸 방지하기 위해 이름을 동적 할당
+    name = new char[strlen(pc.name) + 1];
+    strcpy(name, pc.name);
+  }
+
+  Photon_Cannon::Photon_Cannon(int x, int y, const char *cannon_name) {
+    hp = shield = 100;
+    coord_x = x;
+    coord_y = y;
+    damage = 20;
+    name = new char[strlen(cannon_name) + 1];
+    strcpy(name, cannon_name);
+  }
+
+  Photon_Cannon::~Photon_Cannon(){
+    if (name) delete[] name;
+  }
+
+  void Photon_Cannon::show_status() {
+    std::cout << "Photon Cannon " << std::endl;
+    std::cout << " Location : ( " << coord_x << " , " << coord_y << " ) "
+              << std::endl;
+    std::cout << " HP : " << hp << std::endl;
+  }
+
+  // 복사 생성자, 소멸자 문제1
+  // class string {
+  //   char *str;
+  //   int len;
+  
+  //  public:
+  //   string(char c, int n);  // 문자 c 가 n 개 있는 문자열로 정의
+  //   string(const char *s);
+  //   string(const string &s);
+  //   ~string();
+  
+  //   void add_string(const string &s);   // str 뒤에 s 를 붙인다.
+  //   void copy_string(const string &s);  // str 에 s 를 복사한다.
+  //   int strlen();                       // 문자열 길이 리턴
+  // };
 
   int main()
   {
+    Photon_Cannon pc1(3, 3);
+    Photon_Cannon pc2(pc1);
+    // c++에선 밑의 문장을 Photon_Cannon pc3(pc2)라고 인식함
+    Photon_Cannon pc3 = pc2;
+  
+    pc1.show_status();
+    pc2.show_status();
+    
+    
+    
+    
+    
+    // Test a('a');
+    // simple_function();
+
+
     // 스타크래프트
     // Marine marine1(2, 3);
     // Marine marine2(3, 5);
@@ -331,17 +434,17 @@ public:
     // marine1.show_status();
     // marine2.show_status();
 
-    Marine* marines[100];
-    marines[0] = new Marine(2, 3, "Marine 2");
-    marines[1] = new Marine(1, 5, "Marine 1");
-    marines[0]->show_status();
-    marines[1]->show_status();
-    std::cout << std::endl << "마린 1 이 마린 2 를 공격! " << std::endl;
-    marines[0]->be_attacked(marines[1]->attack());
-    marines[0]->show_status();
-    marines[1]->show_status();
-    delete marines[0];
-    delete marines[1];
+    // Marine* marines[100];
+    // marines[0] = new Marine(2, 3, "Marine 2");
+    // marines[1] = new Marine(1, 5, "Marine 1");
+    // marines[0]->show_status();
+    // marines[1]->show_status();
+    // std::cout << std::endl << "마린 1 이 마린 2 를 공격! " << std::endl;
+    // marines[0]->be_attacked(marines[1]->attack());
+    // marines[0]->show_status();
+    // marines[1]->show_status();
+    // delete marines[0];
+    // delete marines[1];
   
     // 날짜 과제
     // Date d;
