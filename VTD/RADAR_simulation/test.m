@@ -29,7 +29,7 @@ rcs_table = RADAR.RCS1;
 r_m0 = [0; 0; 0];
 v_m0 = [200; 0; 0];
 % r_t0 = [5000; 1100; 1000];
-r_t0 = [5000; 500; 0];
+r_t0 = [5000; 1100; 1000];
 v_t0 = [0; 0; 0];
 N = 4;
 % 헬기 및 표적의 위치, 속도
@@ -57,7 +57,7 @@ t = 0;
 dt = 0.001;
 
 % 초기 자세 (Euler angles: roll, pitch, yaw)
-attitude = [0; 0; 0]; % [roll; pitch; yaw] in radians
+attitude = [0; 0; 0]; % [roll; pitch; yaw] [radian]
 
 % 동역학 오소(추력,항력,중력 고려)
 mass = 7000; % 헬기 중량 (kg)
@@ -76,7 +76,6 @@ xt = [r_t0; v_t0];
 xt_record1 = xt.';
 attitude_record = attitude.'; % 자세 저장
 required_thrust_record = []; % 필요 추력 저장
-
 los_rate_record = [];
 OMEGA_tm_record = [];
 zem_record = [];
@@ -85,8 +84,8 @@ miss_distance_record = [];
 rcs_record = [];
 time_record = [];
 %% 헬기 기동 시뮬레이션
-while t < 30
-% while zem > 0.0001
+% while t < 30
+while zem > 0.0001
     % 헬기 및 표적의 위치, 속도
     r_m = xm(1:3,1);
     v_m = xm(4:6,1);
@@ -105,7 +104,6 @@ while t < 30
     zem = norm(r_tm + v_tm * t_go); % ZEM 계산
     % 3차원 PPN 유도 명령 생성
     u_ppn = N * cross(OMEGA_tm, v_m);
-
     % 속도 크기 계산
     v_magnitude = norm(v_m);
     % 항력 계산 (Drag = 1/2 * Cd * rho * v^2 * A)
@@ -126,24 +124,23 @@ while t < 30
     thrust_direction = required_thrust / norm(required_thrust); % 단위 벡터
     roll = atan2(thrust_direction(2), thrust_direction(3)); % y축과 z축을 이용한 roll 계산
     pitch = atan2(-thrust_direction(1), sqrt(thrust_direction(2)^2 + thrust_direction(3)^2)); % x축 방향 고려
-    vx = v_m(1);
-    vy = v_m(2);
+    vx = v_m(1); vy = v_m(2);
     yaw = atan2(vy,vx);
     % yaw = atan2(thrust_direction(2), thrust_direction(1));
 
-    attitude = [roll; pitch; yaw]; % 새로운 자세 저장
+    attitude = [roll; pitch; yaw]; % 자세 저장
     % 회전 행렬 적용 (3-2-1 변환 적용)
     % 기체 고정 좌표계를 지면좌표계에 대해 표시
     R = eul2rotm([yaw, pitch, roll], 'ZYX'); % 회전 행렬 생성
-    total_acceleration_2 = R * total_acceleration; % 회전 변환 적용
+    total_acceleration_2 = R * total_acceleration; % 회전 행렬 적용
 
     % 오일러 적분 적용
-    xm(1:3,1) = xm(1:3,1) + xm(4:6,1) * dt; % 위치 업데이트
-    % xm(4:6,1) = xm(4:6,1) + u_ppn * dt; % 속도 업데이트
+    xm(1:3,1) = xm(1:3,1) + xm(4:6,1) * dt; % 비행체 위치 업데이트
+    % xm(4:6,1) = xm(4:6,1) + u_ppn * dt; % 비행체 속도 업데이트
     xm(4:6,1) = xm(4:6,1) + total_acceleration_2 * dt; % 속도 업데이트    
     xm_record1 = [xm_record1; xm.'];
-    xt(1:3,1) = xt(1:3,1) + xt(4:6,1) * dt; % 위치 업데이트
-    xt(4:6,1) = xt(4:6,1) + u_t * dt; % 속도 업데이트
+    xt(1:3,1) = xt(1:3,1) + xt(4:6,1) * dt; % 타겟 위치 업데이트
+    xt(4:6,1) = xt(4:6,1) + u_t * dt; % 타겟 속도 업데이트
     xt_record1 = [xt_record1; xt.'];
     % Miss Distance 업데이트
     current_miss_distance = norm(r_tm);
@@ -151,20 +148,22 @@ while t < 30
     if current_miss_distance < miss_distance
         miss_distance = current_miss_distance;
     end
+
     % 레이더 관측 기하 계산
-    
-    r_rel = r_m - radar_pos;    % 레이더 → 헬기 벡터
-    % % 방위각(azimuth) = xy평면에서 x축 기준 각도
+    % 관측 기하는 RADAR_Module 내부 수식 이용
+    r_rel = r_m - radar_pos; % 레이더 → 헬기의 LOS 벡터 계산
     % az = atan2(r_rel(2), r_rel(1)) * (180/pi);
-    % % 고각(elevation) = 지평선 대비 위로 몇 도인지
     % el_original = atan2(r_rel(3), sqrt(r_rel(1)^2 + r_rel(2)^2)) * (180/pi);
     % el = 90 - el_original;
-    los_pitch = atan2(-r_rel(3), norm(r_rel(1:2)));
+    % los_pitch = atan2(-r_rel(3), norm(r_rel(1:2)));
+    los_pitch = atan2( r_rel(3), sqrt( r_rel(1)^2 + r_rel(2)^2 ) );
     los_yaw = atan2(r_rel(2), r_rel(1));    
     pitch = Angle_trim(los_pitch);
     yaw = Angle_trim(los_yaw);
     el = pitch;
     az = yaw;
+    el_deg = el * (180/pi);
+    az_deg = az * (180/pi);
     pitch_array = RADAR.theta(1, :) * pi/180;
     yaw_array = RADAR.psi(:, 1) * pi/180;
     p_idx = Find_Index(pitch_array, length(pitch_array), pitch);
@@ -182,8 +181,8 @@ while t < 30
     zem_record = [zem_record; zem]; % ZEM 저장
     time_record = [time_record; t]; % 시간 저장
     attitude_record = [attitude_record; attitude.']; % 자세(롤,피치,요) 저장
-    az_record = [az_record; az]; % 방위각 저장
-    el_record = [el_record; el]; % 고각 저장
+    az_record = [az_record; az_deg]; % 방위각 저장
+    el_record = [el_record; el_deg]; % 고각 저장
     rcs_record = [rcs_record; rcs];
     t = t + dt;
 end
@@ -263,14 +262,15 @@ attitude_record = attitude_record(2:end, :);
 % time_vector = 0:dt:30-dt; % 0~30초 범위 시간 벡터
 % time_vector_2 = [time_vector, time_vector(end) + dt]; % 마지막 시간 추가 (30000 → 30001)
 %% 종료조건이 t>30인 경우 시각화
-close all;
+% close all;
 figure;
 plot3(xm_record1(:,1),xm_record1(:,2),xm_record1(:,3),'b','LineWidth',2)
 hold on
 plot3(r_m0(1,1),r_m0(2,1),r_m0(3,1),'bp','LineWidth',2)
 % plot3(xt_record1(:,1),xt_record1(:,2),xt_record1(:,3),'r','LineWidth',2)
 plot3(r_t0(1,1),r_t0(2,1),r_t0(3,1),'rp','LineWidth',2)
-legend({'헬기 궤적','헬기 초기 위치','타겟 초기 위치'},'Location','northwest','NumColumns',1)
+plot3(radar_pos(1), radar_pos(2), radar_pos(3), 'kd', 'LineWidth', 2)
+legend({'헬기 궤적','헬기 초기 위치','타겟 초기 위치','레이더 위치'},'Location','northwest','NumColumns',1)
 xlabel('x [m]')
 ylabel('y [m]')
 zlabel('z [m]')
@@ -425,8 +425,13 @@ subplot(2,1,2)
 plot(time_record, el_record, 'r','LineWidth',2); grid on;
 xlabel('시간 [s]'); ylabel('Elevation [deg]');
 title('관측기하에 따른 고각 (θ)');
+% rcs
+figure();
+plot(time_record, rcs_record, 'b','LineWidth',2); grid on;
+xlabel('시간 [s]'); ylabel('RCS [dB]');
+title('비행체 RCS');
 %% 종료조건이 zem<0.0001인 경우 시각화
-close all;
+% close all;
 figure;
 plot3(xm_record1(:,1),xm_record1(:,2),xm_record1(:,3),'b','LineWidth',2)
 hold on
@@ -574,5 +579,11 @@ subplot(2,1,2)
 plot(time_record, el_record, 'r','LineWidth',2); grid on;
 xlabel('시간 [s]'); ylabel('Elevation [deg]');
 title('관측기하에 따른 고각 (θ)');
-%%
+% rcs
+figure();
+plot(time_record, rcs_record, 'b','LineWidth',2); grid on;
+xlabel('시간 [s]'); ylabel('RCS [dB]');
+title('비행체 RCS');
+
+
 
