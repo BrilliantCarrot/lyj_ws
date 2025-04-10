@@ -1,8 +1,6 @@
 % Psuedo 6 DoF Simulation
 % simulation for heliocopter case
-clc; 
-clear; 
-close all;
+clc; clear; close all;
 % 레이더 파라미터
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/Results_2GHz.mat
 RADAR.RCS1 = Sth;
@@ -59,9 +57,9 @@ dt = 0.001;
 % 초기 자세 (Euler angles: roll, pitch, yaw)
 attitude = [0; 0; 0]; % [roll; pitch; yaw] [radian]
 
-% 동역학 오소(추력,항력,중력 고려)
+% 동역학 요소(추력,항력,중력 고려)
 mass = 7000; % 헬기 중량 (kg)
-thrust = 10000; % 추력 (N)
+thrust = 30000; % 추력 (N)
 Cd = 0.1; % 항력 계수
 rho = 1.225; % 공기 밀도 (kg/m^3)
 A = 1; % 단면적 (m^2)
@@ -136,8 +134,8 @@ while zem > 0.0001
 
     % 오일러 적분 적용
     xm(1:3,1) = xm(1:3,1) + xm(4:6,1) * dt; % 비행체 위치 업데이트
-    % xm(4:6,1) = xm(4:6,1) + u_ppn * dt; % 비행체 속도 업데이트
-    xm(4:6,1) = xm(4:6,1) + total_acceleration_2 * dt; % 속도 업데이트    
+    xm(4:6,1) = xm(4:6,1) + u_ppn * dt; % 비행체 속도 업데이트
+    % xm(4:6,1) = xm(4:6,1) + total_acceleration_2 * dt; % 속도 업데이트    
     xm_record1 = [xm_record1; xm.'];
     xt(1:3,1) = xt(1:3,1) + xt(4:6,1) * dt; % 타겟 위치 업데이트
     xt(4:6,1) = xt(4:6,1) + u_t * dt; % 타겟 속도 업데이트
@@ -183,7 +181,7 @@ while zem > 0.0001
     attitude_record = [attitude_record; attitude.']; % 자세(롤,피치,요) 저장
     az_record = [az_record; az_deg]; % 방위각 저장
     el_record = [el_record; el_deg]; % 고각 저장
-    rcs_record = [rcs_record; rcs];
+    rcs_record = [rcs_record; rcs]; % rcs 저장
     t = t + dt;
 end
 xm_record1 = xm_record1(1:end-1, :); % 마지막 행 제거, 시간 스탭 맞추기 용 (30001 → 30000)
@@ -584,6 +582,202 @@ figure();
 plot(time_record, rcs_record, 'b','LineWidth',2); grid on;
 xlabel('시간 [s]'); ylabel('RCS [dB]');
 title('비행체 RCS');
+%% 기존 유도 알고리즘 결과 [롤,피치,요,추력]을 이용하여 궤적이 동일한지 확인
+% chatgpt
+% 고정 추력 적용하여 궤적 계산
+% thrust = 30000;  % 고정된 추력값 [N]
+% mass = 7000;     % 헬기 질량 [kg]
+% dt = 0.001;
+% g = 9.81;
+% gravity_force = [0; 0; -mass * g];
+% 
+% % 초기 위치, 속도
+% r_thrust = r_m0;
+% v_thrust = v_m0;
+% xm_record_thrust = r_thrust.';
+% 
+% for i = 1:size(attitude_record,1)
+%     attitude = attitude_record(i, :); % roll, pitch, yaw
+%     R = eul2rotm([attitude(3), attitude(2), attitude(1)], 'ZYX'); % Yaw-Pitch-Roll
+%     thrust_vector = R * [0; 0; thrust]; % 고정 추력을 자세에 따라 회전
+% 
+%     % 가속도 = (추력 + 중력) / 질량
+%     total_force = thrust_vector + gravity_force;
+%     acc = total_force / mass;
+% 
+%     % 속도 및 위치 업데이트 (오일러 적분)
+%     v_thrust = v_thrust + acc * dt;
+%     r_thrust = r_thrust + v_thrust * dt;
+% 
+%     % 저장
+%     xm_record_thrust = [xm_record_thrust; r_thrust.'];
+% end
+% 
+% 
+% % 궤적 비교 시각화
+% figure;
+% plot3(xm_record1(:,1),xm_record1(:,2),xm_record1(:,3),'b','LineWidth',2)
+% hold on
+% plot3(xm_record_thrust(:,1), xm_record_thrust(:,2), xm_record_thrust(:,3), 'g--', 'LineWidth', 2)
+% plot3(r_m0(1,1),r_m0(2,1),r_m0(3,1),'bp','LineWidth',2)
+% plot3(r_t0(1,1),r_t0(2,1),r_t0(3,1),'rp','LineWidth',2)
+% plot3(radar_pos(1), radar_pos(2), radar_pos(3), 'kd', 'LineWidth', 2)
+% legend({'PPN 유도 궤적','고정 추력 궤적','헬기 초기 위치','타겟 초기 위치','레이더 위치'},'Location','northwest')
+% xlabel('x [m]')
+% ylabel('y [m]')
+% zlabel('z [m]')
+% grid on
+% title("PPN vs 고정 추력 기반 궤적 비교")
+% hold off
+%% 자세와 추력을 이용한 궤적 검증 시뮬레이션
+% claude
+% 원래 시뮬레이션에서 얻은 자세와 추력 기록을 활용하여 같은 궤적 생성
 
+% 초기화
+r_m_verify = r_m0;  % 초기 위치
+v_m_verify = v_m0;  % 초기 속도
+xm_verify = [r_m_verify; v_m_verify];
+xm_record_verify = xm_verify.';
 
+% 검증용 시뮬레이션 (이미 기록된 자세와 추력 사용)
+for i = 1:length(time_record)
+    % 현재 상태
+    r_m_verify = xm_verify(1:3,1);
+    v_m_verify = xm_verify(4:6,1);
+    
+    % i번째 기록된 자세와 추력 가져오기
+    if i <= length(attitude_record)
+        current_attitude = attitude_record(i, :)';
+        roll = current_attitude(1);
+        pitch = current_attitude(2);
+        yaw = current_attitude(3);
+    else
+        % 배열 범위를 벗어나면 마지막 값 사용
+        current_attitude = attitude_record(end, :)';
+        roll = current_attitude(1);
+        pitch = current_attitude(2);
+        yaw = current_attitude(3);
+    end
+    
+    if i <= length(required_thrust_record)
+        current_thrust = required_thrust_record(i, :)';
+    else
+        % 배열 범위를 벗어나면 마지막 값 사용
+        current_thrust = required_thrust_record(end, :)';
+    end
+    
+    % 속도 크기 계산
+    v_magnitude = norm(v_m_verify);
+    
+    % 항력 계산 (Drag = 1/2 * Cd * rho * v^2 * A)
+    drag = 0.5 * Cd * rho * v_magnitude^2 * A * pi;
+    drag_force = -drag * (v_m_verify / v_magnitude); % 속도 방향 반대
+    
+    % 중력 적용
+    gravity_force = [0; 0; -mass * g];
+    
+    % 회전 행렬 생성 (3-2-1 변환)
+    R = eul2rotm([yaw, pitch, roll], 'ZYX');
+    
+    % 기록된, 회전된 자세로 추력 적용 (지면 좌표계)
+    total_acceleration = (current_thrust + drag_force + gravity_force) / mass;
+    
+    % 오일러 적분 적용
+    xm_verify(1:3,1) = xm_verify(1:3,1) + xm_verify(4:6,1) * dt; % 위치 업데이트
+    xm_verify(4:6,1) = xm_verify(4:6,1) + total_acceleration * dt; % 속도 업데이트
+    
+    % 결과 기록
+    xm_record_verify = [xm_record_verify; xm_verify.'];
+end
 
+% 원래 궤적과 검증 궤적 비교
+xm_record_verify = xm_record_verify(2:end, :); % 첫 행 제거하여 길이 맞추기
+
+% 위치 오차 계산
+position_error = xm_record1(:,1:3) - xm_record_verify(:,1:3);
+position_error_norm = vecnorm(position_error, 2, 2);
+
+% 속도 오차 계산
+velocity_error = xm_record1(:,4:6) - xm_record_verify(:,4:6);
+velocity_error_norm = vecnorm(velocity_error, 2, 2);
+
+% 결과 시각화
+close all;
+figure;
+plot3(xm_record1(:,1), xm_record1(:,2), xm_record1(:,3), 'b', 'LineWidth', 2);
+hold on;
+plot3(xm_record_verify(:,1), xm_record_verify(:,2), xm_record_verify(:,3), 'r--', 'LineWidth', 2);
+plot3(r_m0(1,1), r_m0(2,1), r_m0(3,1), 'bp', 'LineWidth', 2);
+plot3(r_t0(1,1), r_t0(2,1), r_t0(3,1), 'rp', 'LineWidth', 2);
+legend({'원래 궤적', '검증 궤적', '초기 위치', '타겟 위치'}, 'Location', 'northwest', 'NumColumns', 1);
+xlabel('x [m]');
+ylabel('y [m]');
+zlabel('z [m]');
+grid on;
+title('원래 궤적과 검증 궤적 비교');
+
+% 위치 오차 시각화
+figure;
+subplot(4,1,1);
+plot(time_record, position_error_norm, 'b', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('위치 오차 [m]');
+title('위치 오차 크기');
+grid on;
+
+subplot(4,1,2);
+plot(time_record, position_error(:,1), 'r', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('x 위치 오차 [m]');
+title('x 방향 위치 오차');
+grid on;
+
+subplot(4,1,3);
+plot(time_record, position_error(:,2), 'g', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('y 위치 오차 [m]');
+title('y 방향 위치 오차');
+grid on;
+
+subplot(4,1,4);
+plot(time_record, position_error(:,3), 'm', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('z 위치 오차 [m]');
+title('z 방향 위치 오차');
+grid on;
+
+% 속도 오차 시각화
+figure;
+subplot(4,1,1);
+plot(time_record, velocity_error_norm, 'b', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('속도 오차 [m/s]');
+title('속도 오차 크기');
+grid on;
+
+subplot(4,1,2);
+plot(time_record, velocity_error(:,1), 'r', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('x 속도 오차 [m/s]');
+title('x 방향 속도 오차');
+grid on;
+
+subplot(4,1,3);
+plot(time_record, velocity_error(:,2), 'g', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('y 속도 오차 [m/s]');
+title('y 방향 속도 오차');
+grid on;
+
+subplot(4,1,4);
+plot(time_record, velocity_error(:,3), 'm', 'LineWidth', 2);
+xlabel('시간 [s]');
+ylabel('z 속도 오차 [m/s]');
+title('z 방향 속도 오차');
+grid on;
+
+% 최대 오차 출력
+fprintf('최대 위치 오차: %.6f m\n', max(position_error_norm));
+fprintf('최대 속도 오차: %.6f m/s\n', max(velocity_error_norm));
+fprintf('평균 위치 오차: %.6f m\n', mean(position_error_norm));
+fprintf('평균 속도 오차: %.6f m/s\n', mean(velocity_error_norm));
