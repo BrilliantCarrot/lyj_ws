@@ -1,12 +1,21 @@
 % 레이더 가시성 테스트 메인 코드
 %% 초기화
 clear; clc; close all;
-load C:/Users/leeyj/lab_ws/data/VTD/RADAR/output_map.mat;
+load C:/Users/leeyj/lab_ws/data/VTD/RADAR/map_flat_land.mat;
+% mountain = load ("C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat");
+% load C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat;
 X = MAP.X; % X 좌표
 Y = MAP.Y; % Y 좌표
 Z = MAP.alt; % 고도
-x_min = 0; x_max = 30000;
-y_min = 0; y_max = 40000;
+% 원래 방식으론 데이터 크기 문제로 인해 지형을 자른 특정 영역만 확인
+% 산지의 경우 x_min = 0; x_max = 40000; y_min = 40000; y_max=max(Y(:));
+% 평지의 경우(이전) 
+x_min = 0; x_max = 30000; y_min = 0; y_max = 40000;
+% 전체 영역
+% x_min = min(X(:)); 
+% x_max = max(X(:));
+% y_min = min(Y(:)); 
+% y_max = max(Y(:));
 % X와 Y 범위에 해당하는 인덱스 계산
 x_idx = (X(1, :) >= x_min) & (X(1, :) <= x_max);
 y_idx = (Y(:, 1) >= y_min) & (Y(:, 1) <= y_max);
@@ -29,10 +38,10 @@ RADAR.theta = theta;
 RADAR.psi = psi;
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/Results_8GHz.mat
 RADAR.RCS2 = Sth;
-RADAR.lambda = freq2wavelen(2 * 10^9); % 기본 2GHz 파라미터
-RADAR.Pt = 14000;  % [W] Peak Power
-RADAR.tau = 0.00009;  % [s] Pulse Width
-RADAR.G = 34;  % [dBi] Antenna Gain
+RADAR.lambda = freq2wavelen(8 * 10^9); % 기본 8GHz 파라미터
+RADAR.Pt = 6000;  % [W] Peak Power
+RADAR.tau = 0.0001;  % [s] Pulse Width
+RADAR.G = 39;  % [dBi] Antenna Gain
 RADAR.Ts = 290;  % [K] System Temperature
 RADAR.L = 8.17;  % [dB] Loss
 RADAR.sigma_0 = 10^(-20/10);  % Clutter Scattering Coefficient
@@ -44,22 +53,53 @@ RADAR.c = 3e8;  % Speed of Light (m/s)
 RADAR.prf = 1000; % [Hz] Pulse repetition frequency
 RADAR.Du = RADAR.tau * RADAR.prf;
 rcs_table = RADAR.RCS1;
-radar_1 = double([10000, 10000, 230]);  % 레이더1 위치
+% radar_1 = double([45000, 60000, 750]);  % 레이더1 위치(산지)
+radar_1 = double([10000, 10000, 230]);  % 레이더1 위치(이전 평지에서)
 % radar_2 = [14000, 14000, 300];  % 레이더2 위치
 
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/path_new.mat;
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/path.mat;
-load C:/Users/leeyj/lab_ws/data/VTD/RADAR/sir_data.mat;
+load C:/Users/leeyj/lab_ws/data/VTD/RADAR/SIR_matrix.mat;
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/visibility_matrix_sky.mat;
+
+figure;
+clf;
+set(gcf, 'Position', [150, 75, 1200, 750]); % [left, bottom, width, height]
+s = surf(X/1000, Y/1000, Z, 'EdgeColor', 'k', 'LineWidth',1);
+hold on;
+plot3(radar_1(1)/1000, radar_1(2)/1000, radar_1(3), ...
+      'ko', 'MarkerSize', 5, 'MarkerFaceColor', 'k', 'LineWidth', 2);
+colormap('jet');
+colorbar;
+view(20, 85);
+grid on;
+alpha(s, 0.8);
+title('3D Surface');
+xlabel('X Coordinate (meters)');
+ylabel('Y Coordinate (meters)');
+zlabel('Altitude (meters)');
+
 %% 가시성까지 고려된 환경에서 PSO 테스트
+% 경로점에서의 sir 값도 저장
 clc;
-radar_1 = [10000, 10000, 230]; % 단일 레이더의 경우
-radars = [10000, 10000, 230]; % 복수의 레이더 경우
-start_pos = [0, 0, 200];
+% 이전 평지에서 레이더 위치
+% radar_1 = [10000, 10000, 230]; % 단일 레이더의 경우
+% radars = [10000, 10000, 230]; % 복수의 레이더 경우
+% 산지에서 레이더 위치
+radar_1 = [45000, 60000, 750]; % 단일 레이더의 경우
+radars = [30000, 40000, 460]; % 복수의 레이더 경우
+% 이전 평지에서 시작점 및 종료점
+% start_pos = [0, 0, 200];
+% end_pos = [25000,34000,80];
+% 산지에서 시작점 및 종료점
+start_pos = [60000, 70000, 700];
+end_pos = [14800, 14600, 270];
 % end_pos = [1780, 5180, 450];
-end_pos = [25000,34000,80];
 % path = PSO_SIR_Optimization(radar_1, start_pos, end_pos, X, Y, Z, RADAR);
-[path, sir_data, sir_values, visibility_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
+[path, sir_values, visibility_values] = PSO_visibility(...
+    radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
+%% PSO 결과 시각화
+visualize_PSO_SIR(path, sir_data, radar_1, X, Y, Z);
 %% path와 sir_data 길이 맞춤
 num_waypoints = size(path, 1);
 current_sir_data_length = length(sir_data);
@@ -69,9 +109,11 @@ if current_sir_data_length < num_waypoints
         sir_data{k} = last_sir_matrix; % 부족한 부분에 동일 데이터 채우기
     end
 end
-%% 
+%% 지형 불러오기
+close all;
 radar_1 = [10000, 10000, 230];
-load C:/Users/leeyj/lab_ws/data/VTD/RADAR/output_map.mat;
+% load C:/Users/leeyj/lab_ws/data/VTD/RADAR/map_flat_land.mat;
+load C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat;
 X = MAP.X; % X 좌표
 Y = MAP.Y; % Y 좌표
 Z = MAP.alt; % 고도
@@ -92,8 +134,8 @@ Z = Z(1:dy:end, 1:dx:end); % Z 데이터 축소
 % 정규화 및 Y 좌표 방향 수정
 X = X_reduced - min(min(X_reduced)); % X 좌표를 0부터 시작
 Y = Y_reduced - min(min(Y_reduced)); % Y 좌표를 0부터 시작
-visualize_PSO_SIR_2(path, sir_data, sir_values, visibility_values, radar_1, X, Y, Z);
-%% 시각화
+% visualize_PSO_SIR_2(path, sir_data, sir_values, visibility_values, radar_1, X, Y, Z);
+%% 지형 시각화
 figure;
 clf;
 set(gcf, 'Position', [150, 75, 1200, 750]); % [left, bottom, width, height]
@@ -110,7 +152,7 @@ title('3D Surface');
 xlabel('X Coordinate (meters)');
 ylabel('Y Coordinate (meters)');
 zlabel('Altitude (meters)');
-%% 레이더를 특정 위치에 고정시킨 후 전체 지형에 대해 SIR을 구하는 코드
+%% 레이더를 특정 위치에 고정시킨 후 전체 지형에 대해 SIR을 구함(SIR 계산 테스트)
 clc; close all;
 radar_1 = double(radar_1);
 SIR_matrix = RADAR_loc_sim(radar_1, X, Y, Z, RADAR);
@@ -136,7 +178,6 @@ title('SIR Distribution Over Terrain');
 %% 가시성 테스트
 % 전체 지형에 대한 가시성 결과 시각화
 visibility_matrix = LOS_test_new(radar_1, X, Y, Z);
-
 figure;
 clf;
 set(gcf, 'Position', [150, 75, 1200, 750]);
@@ -152,8 +193,7 @@ ylabel('Y [km]');
 zlabel('Altitude (meters)');
 legend('Terrain', 'Radar');
 grid on;
-%%
-% 가시성이 없는 영역을 NaN으로 설정하여 회색으로 표현
+%% 가시성이 없는 영역을 NaN으로 설정하여 회색으로 표현
 SIR_display = SIR_matrix;
 SIR_display(visibility_matrix == 0) = NaN;
 figure;
@@ -196,9 +236,9 @@ start_pos = [0, 0, 200];
 % end_pos = [1780, 5180, 450];
 end_pos = [25000,34000,80];
 % path = PSO_SIR_Optimization(radar_1, start_pos, end_pos, X, Y, Z, RADAR);
-[path, sir_data, sir_values] = PSO_visibility(sir_data, radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
-%%
-visualize_PSO_SIR(path, sir_data, radar_1, X, Y, Z);
+[path, sir_values] = PSO_visibility(radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
+%% PSO 결과 시각화
+visualize_PSO_gray(path, sir_data, radar_1, X, Y, Z);
 
 %% 추출된 path를 잇는 코드
 

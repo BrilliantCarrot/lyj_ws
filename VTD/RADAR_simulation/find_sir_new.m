@@ -5,9 +5,9 @@ function sig = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z)
     % 레이더 파라미터 설정
     % X, Y, Z: 지형 데이터
     lambda = freq2wavelen(2 * 10^9); % 기본 2GHz 파라미터
-    Pt = 14000;  % [W] Peak Power
-    tau = 0.00009;  % [s] Pulse Width
-    G = 34;  % [dBi] Antenna Gain
+    Pt = 6000;  % [W] Peak Power
+    tau = 0.0001;  % [s] Pulse Width
+    G = 39;  % [dBi] Antenna Gain
     Ts = 290;  % [K] System Temperature
     L = 8.17;  % [dB] Loss
     sigma_0 = 10^(-20/10);  % Clutter Scattering Coefficient

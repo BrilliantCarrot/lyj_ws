@@ -2,7 +2,7 @@
 
 %% 클러터 적용 코드 완성본
 
-
+clc; close; 
 
 % 레이더 파라미터
 lambda = freq2wavelen(9e9); % Wavelength (m), Scanter 4000
