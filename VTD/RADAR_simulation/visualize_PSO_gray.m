@@ -1,4 +1,4 @@
-function visualize_PSO_gray(optimal_path, sir_data, radar_pos, X, Y, Z)
+function visualize_PSO_gray(optimal_path, ~ , radar_pos, X, Y, Z, start_pos, end_pos)
     % optimal_path: PSO 알고리즘 결과로 생성된 최적 경로
     % sir_data: PSO 알고리즘에서 각 단계별로 계산된 SIR 분포 데이터
     % radar_pos: 레이더 위치
@@ -9,21 +9,22 @@ function visualize_PSO_gray(optimal_path, sir_data, radar_pos, X, Y, Z)
     s = surf(X / 1000, Y / 1000, Z, 'EdgeColor', 'none', 'FaceAlpha', 0.8);
     colormap(gray);
     % colorbar;
-
     xlabel('X [km]');
     ylabel('Y [km]');
     zlabel('Altitude [m]');
     title('Path Minimizing Detectability');
     view(-20, 80);
     grid on;
-    % 레이더 표시
-    plot3(radar_pos(1) / 1000, radar_pos(2) / 1000, radar_pos(3), ...
+    plot3(radar_pos(1) / 1000, radar_pos(2) / 1000, radar_pos(3)+10, ...
           'ko', 'MarkerSize', 10, 'MarkerFaceColor', 'k');
+    plot3(start_pos(1) / 1000, start_pos(2) / 1000, start_pos(3), ...
+          'ks', 'MarkerSize', 10, 'MarkerFaceColor', 'w');
+    plot3(end_pos(1) / 1000, end_pos(2) / 1000, end_pos(3), ...
+          'ks', 'MarkerSize', 10, 'MarkerFaceColor', 'g');
     % path_plot = plot3(optimal_path(1, 1) / 1000, optimal_path(1, 2) / 1000, optimal_path(1, 3), ...
     %                   'r-', 'LineWidth', 2);
     % radius_plot = plot3([], [], [], 'c--', 'LineWidth', 1);
-    % pause_time = 0.5;
-
+    pause_time = 0.1;
 
     %3. 경로점의 마커를 SIR 크기로 컬러 표시
     % pause_time = 0.1;
@@ -48,7 +49,7 @@ function visualize_PSO_gray(optimal_path, sir_data, radar_pos, X, Y, Z)
               'MarkerFaceColor', color, 'MarkerEdgeColor', 'k');
 
         drawnow;
-        % pause(pause_time);
+        pause(pause_time);
     end
     legend('Terrain', 'Radar Position', 'Path Points', 'Location', 'Best');
 

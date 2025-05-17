@@ -1,4 +1,4 @@
-function visualize_PSO_SIR(optimal_path, sir_data, radar_pos, X, Y, Z)
+function visualize_PSO_SIR_3(optimal_path, sir_data, radar_pos, X, Y, Z)
     % optimal_path: PSO 알고리즘 결과로 생성된 최적 경로
     % sir_data: PSO 알고리즘에서 각 단계별로 계산된 SIR 분포 데이터
     % radar_pos: 레이더 위치

@@ -62,7 +62,7 @@ function sig = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z)
     Fecl = eclipsingfactor(Range, Du, prf);
     SNR = radareqsnr(lambda, Range, Pt, tau, 'Gain', G, 'Ts', Ts, 'RCS', rcs, 'CustomFactor', Fecl, 'Loss', L);
     % 클러터 RCS 계산
-    h_r = radar_pos(3);  % 레이더 고도
+    h_r = double(radar_pos(3));  % 레이더 고도
     h_t = target_pos(3); % 목표물 고도
     theta_r = asin(min(1, max(-1, h_r / Range)));
     theta_e = asin(min(1, max(-1, (h_t - h_r) / Range)));
@@ -77,6 +77,7 @@ function sig = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z)
     sigma_SLc = sigma_0 * A_SLc * SL_rms^2;
     R_h = sqrt((8 * R_e * h_r) / 3);
     sigma_clutter = (sigma_MBc + sigma_SLc) / (1 + (Range / R_h)^4);
+    % sigma_clutter = (sigma_MBc + sigma_SLc);
     % SCR 및 SIR 계산
     SCR = rcs / sigma_clutter;
     SIR = 1 / ((1 / SNR) + (1 / SCR));

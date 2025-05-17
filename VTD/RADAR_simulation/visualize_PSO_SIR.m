@@ -1,49 +1,38 @@
-function visualize_PSO_SIR(optimal_path, sir_data, radar_pos, X, Y, Z)
-    % optimal_path: PSO 알고리즘 결과로 생성된 최적 경로
-    % sir_data: PSO 알고리즘에서 각 단계별로 계산된 SIR 분포 데이터
-    % radar_pos: 레이더 위치
-    % X, Y, Z: 지형 데이터
+function visualize_PSO_SIR(optimal_path, sir_data, radars, X, Y, Z, start_pos, end_pos)
     figure;
     set(gcf, 'Position', [200, 100, 1000, 750]);
     hold on;
-    % s = surf(X / 1000, Y / 1000, Z, 'EdgeColor', 'k', 'LineWidth', 1, 'FaceAlpha', 0.5);
-    s = surf(X / 1000, Y / 1000, Z, 'EdgeColor', 'none', 'FaceAlpha', 0.5);
+    s = surf(X / 1000, Y / 1000, Z, sir_data, 'EdgeColor', 'none');
     colormap(jet);
-    colorbar;
-    clim([min(cellfun(@(x) min(x(:)), sir_data)), max(cellfun(@(x) max(x(:)), sir_data))]);
+    h_start = plot3(start_pos(1) / 1000, start_pos(2) / 1000, start_pos(3), ...
+          'ks', 'MarkerSize', 15, 'MarkerFaceColor', 'w');
+    h_end = plot3(end_pos(1) / 1000, end_pos(2) / 1000, end_pos(3), ...
+          'ks', 'MarkerSize', 15, 'MarkerFaceColor', 'g');
+    sir_values = optimal_path(:, 4);
+    sir_min = min(sir_values);
+    sir_max = max(sir_values);
+    alpha(s, 0.8);
+    clim([min(sir_data(:)), max(sir_data(:))]);
     xlabel('X [km]');
     ylabel('Y [km]');
     zlabel('Altitude [m]');
     title('Optimized Path and SIR Distribution');
     view(-20, 80);
     grid on;
-    plot3(radar_pos(1) / 1000, radar_pos(2) / 1000, radar_pos(3), ...
-          'ko', 'MarkerSize', 10, 'MarkerFaceColor', 'k');
-    path_plot = plot3(optimal_path(1, 1) / 1000, optimal_path(1, 2) / 1000, optimal_path(1, 3), ...
-                      'r-', 'LineWidth', 2);
-    radius_plot = plot3([], [], [], 'c--', 'LineWidth', 1);
-    pause_time = 0.05;
-    for t = 1:length(optimal_path)
-        set(path_plot, 'XData', optimal_path(1:t, 1) / 1000, ...
-                       'YData', optimal_path(1:t, 2) / 1000, ...
-                       'ZData', optimal_path(1:t, 3));
-        sir_matrix = sir_data{t};
-        set(s, 'CData', sir_matrix);
-        current_pos = optimal_path(t, :);
-        search_radius = 10000; % 탐색 반경 (반경이 동적으로 변할 경우 업데이트 가능)
-        [circle_x, circle_y] = generate_circle(current_pos(1), current_pos(2), search_radius, X, Y);
-        set(radius_plot, 'XData', circle_x / 1000, 'YData', circle_y / 1000, 'ZData', ones(size(circle_x)) * current_pos(3));
-        drawnow;
-        pause(pause_time);
-    end
-    legend('Terrain', 'Radar Position', 'Optimized Path', 'Search Radius', 'Location', 'Best');
-end
-% 탐색 반경을 나타내는 원 생성 함수
-function [circle_x, circle_y] = generate_circle(center_x, center_y, radius, X, Y)
-    theta = linspace(0, 2 * pi, 100);
-    circle_x = center_x + radius * cos(theta);
-    circle_y = center_y + radius * sin(theta);
-    % X, Y 범위 안에서만 원이 생성되도록 제한
-    circle_x = max(min(circle_x, max(X(:))), min(X(:)));
-    circle_y = max(min(circle_y, max(Y(:))), min(Y(:)));
+    h_radar = scatter3(radars(:,1)/1000, radars(:,2)/1000, radars(:,3),100, 'yellow', 'filled');
+    h_path = scatter3(optimal_path(:,1)/1000,optimal_path(:,2)/1000,optimal_path(:,3),60, 'k', 'filled');
+    legend([s, h_radar, h_path, h_start, h_end],{'SIR distribution', 'Radar Position', ...
+        'Optimized Path','Start Position', 'End Position'},'Location', 'best');
+
+    figure;
+    ax2 = axes('Position',[0.1 0.1 0.8 0.8], ...  % 화면 꽉 채우되, margin 조절
+           'Visible','off');                 % axes, tick, grid 모두 숨김
+    colormap(ax2, jet);
+    caxis(ax2, [sir_min sir_max]);
+    cb = colorbar(ax2, 'eastoutside');
+    cb.Label.Color = 'k';         % 라벨 글자색 흰색으로
+    cb.Color = 'k';               % 눈금 숫자(티크 텍스트) 색상도 흰색으로      
+    cb.Label.String = 'SIR (dB)';
+    cb.Label.FontSize = 12;
+
 end
