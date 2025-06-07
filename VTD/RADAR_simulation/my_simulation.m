@@ -1,110 +1,7 @@
 % 레이더 가시성 테스트 메인 코드
-%% 간단한 지형 생성을 통해 알고리즘 검증
-% 지형 생성 방법 1, 안 씀 
-% grid_size = 3601;
-% dx = 10; dy = 10; % 셀 간격 (임의의 단위, 예: meter)
-% [X, Y] = meshgrid(0:dx:(grid_size-1)*dx, 0:dx:(grid_size-1)*dx);
-% Z = zeros(grid_size, grid_size, 'int16');
-% 
-% % center = round(grid_size / 2);
-% % width = 200;  % 언덕의 반지름 크기
-% % for i = -width:width
-% %     for j = -width:width
-% %         if sqrt(i^2 + j^2) <= width
-% %             Z(center + i, center + j) = int16(500);
-% %         end
-% %     end
-% % end
-% 
-% % 가우시안 형태 고도 분포 언덕 생성
-% center_x = X(1, round(grid_size/2));
-% center_y = Y(round(grid_size/2), 1);
-% hill_radius = 6000;  % 언덕 반지름 (실제 거리 단위)
-% hill_height = 500;   % 언덕 최고 높이
-% sigma = hill_radius / 2;  % 표준편차는 반지름의 절반 정도
-% Z = hill_height * exp(-(((X - center_x).^2 + (Y - center_y).^2) / (2 * sigma^2)));
-% 
-% MAP2.X = X;
-% MAP2.Y = Y;
-% MAP2.alt = Z;
-% X = MAP2.X; % X 좌표
-% Y = MAP2.Y; % Y 좌표
-% Z = double(MAP2.alt); % 고도
-% X_plot = X(1:dy:end, 1:dx:end);
-% Y_plot = Y(1:dy:end, 1:dx:end);
-% Z_plot = Z(1:dy:end, 1:dx:end);
-% save('MAP2.mat', 'MAP2');
-% load C:/Users/leeyj/lab_ws/data/VTD/RADAR/Results_2GHz.mat
-% RADAR.RCS1 = Sth;
-% RADAR.theta = theta;
-% RADAR.psi = psi;
-% load C:/Users/leeyj/lab_ws/data/VTD/RADAR/Results_8GHz.mat
-% RADAR.RCS2 = Sth;
-% RADAR.lambda = freq2wavelen(8 * 10^9); % 기본 8GHz 파라미터
-% RADAR.Pt = 6000;  % [W] Peak Power
-% RADAR.tau = 0.0001;  % [s] Pulse Width
-% RADAR.G = 39;  % [dBi] Antenna Gain
-% RADAR.Ts = 290;  % [K] System Temperature
-% RADAR.L = 8.17;  % [dB] Loss
-% RADAR.sigma_0 = 10^(-20/10);  % Clutter Scattering Coefficient
-% RADAR.theta_A = deg2rad(1);  % Azimuth Beamwidth
-% RADAR.theta_E = deg2rad(2);  % Elevation Beamwidth
-% RADAR.SL_rms = 10^(-20.10);  % RMS Sidelobe Level
-% RADAR.R_e = 6.371e6;  % Earth Radius (m)
-% RADAR.c = 3e8;  % Speed of Light (m/s)
-% RADAR.prf = 1000; % [Hz] Pulse repetition frequency
-% RADAR.Du = RADAR.tau * RADAR.prf;
-% rcs_table = RADAR.RCS1;
-% radar_1 = double([12700, 31240, 20]);
-% radars = [12700, 31240, 20];
-% start_pos = [29300, 30000, 30];
-% end_pos = [8800, 7110, 30];
-% figure;
-% clf;
-% set(gcf, 'Position', [150, 75, 1200, 750]);
-% % s = surf(MAP2.X / 1000, MAP2.Y / 1000, Z, Z, 'EdgeColor', 'none');
-% s = surf(X_plot / 1000, Y_plot / 1000, Z_plot, Z_plot, 'EdgeColor', 'none');
-% hold on;
-% plot3(radar_1(1)/1000, radar_1(2)/1000, radar_1(3), ...
-%       'ko', 'MarkerSize', 5, 'MarkerFaceColor', 'k', 'LineWidth', 2);
-% colormap('jet');
-% colorbar;
-% shading interp
-% view(20, 85);
-% grid on;
-% alpha(s, 0.9);
-% title('3D Surface');
-% xlabel('X Coordinate (km)');
-% ylabel('Y Coordinate (km)');
-% zlabel('Altitude (m)');
-% clim([min(Z(:)), max(Z(:))]);
-
-%% 지형 생성 방법 2, 안 씀
-
-% grid_size = 3601;
-% x_max = 72435.4692673415;
-% y_max = 111339.274863030;
-% dx = x_max / (grid_size - 1);
-% dy = y_max / (grid_size - 1);
-% [X, Y] = meshgrid(0:dx:x_max, 0:dy:y_max);
-% Z = zeros(grid_size, grid_size, 'int16');
-% center = round(grid_size / 2);
-% radius = 200;
-% for i = -radius:radius
-%     for j = -radius:radius
-%         if sqrt(i^2 + j^2) <= radius
-%             Z(center+i, center+j) = int16(300);
-%         end
-%     end
-% end
-% MAP3.X = X;
-% MAP3.Y = Y;
-% MAP3.alt = Z;
-% save('MAP3.mat', 'MAP3');
-
 %% 초기화
 
-clear; close all;
+clear;
 % load C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat;
 % mountain = load ("C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat");
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/map_flat_land.mat;
@@ -113,21 +10,18 @@ Y = MAP.Y; % Y 좌표
 Z = MAP.alt; % 고도
 % 원래 방식으론 데이터 크기 문제로 인해 지형을 자른 특정 영역만 확인
 % 산지의 경우 
-% x_min = 0; x_max = 40000; y_min = 40000; y_max=max(Y(:));
-% 평지의 경우(이전) 
-x_min = 0; x_max = 30000; y_min = 0; y_max = 40000;
+x_min = 0; x_max = 40000; y_min = 0; y_max=40000;
+% 영역 축소 지형 
+% x_min = 0; x_max = 30000; y_min = 0; y_max = 30000;
 % 전체 영역
-% x_min = min(X(:)); 
-% x_max = max(X(:));
-% y_min = min(Y(:)); 
-% y_max = max(Y(:));
+% x_min = min(X(:)); x_max = max(X(:)); y_min = min(Y(:)); y_max = max(Y(:));
 % X와 Y 범위에 해당하는 인덱스 계산
 x_idx = (X(1, :) >= x_min) & (X(1, :) <= x_max);
 y_idx = (Y(:, 1) >= y_min) & (Y(:, 1) <= y_max);
 X = double(X(y_idx, x_idx));
 Y = double(Y(y_idx, x_idx));
 Z = double(Z(y_idx, x_idx));
-% 범위 제한 지형에선 dx, dy 10 설정
+% 단순화한 30km x 30km 지형에선 dxdy 10, 실제 지형에선 dxdy 20
 dx = 10; dy = 10;
 % 자른 간격으로 지형 단순화
 X_reduced = X(1:dy:end, 1:dx:end); % X 데이터 축소
@@ -158,9 +52,9 @@ RADAR.c = 3e8;  % Speed of Light (m/s)
 RADAR.prf = 1000; % [Hz] Pulse repetition frequency
 RADAR.Du = RADAR.tau * RADAR.prf;
 rcs_table = RADAR.RCS1;
-% radar_1 = double([45000, 60000, 750]); % 레이더 위치(산지)
-% radar_1 = double([10000, 10000, 230]); % 레이더 위치(이전 평지에서)
-% radar_1 = double([40000, 60000, 130]); % 레이더 위치(새 평지(simple terrain)에서)
+% radars = double([45000, 60000, 750]); % 레이더 위치(산지)
+% radar_1 = double([10000, 10000, 230]); % 레이더 위치(이전 좁은 평지에서)
+% radars = double([40000, 60000, 130]); % 레이더 위치(새 평지에서)
 % radar_1 = double([18000, 24000, 20]); % 레이더 위치(very simple terrain에서)
 % radar_2 = [14000, 14000, 300];  % 레이더2 위치
 
@@ -172,39 +66,52 @@ rcs_table = RADAR.RCS1;
 figure;
 clf;
 set(gcf, 'Position', [150, 75, 1200, 750]); % [left, bottom, width, height]
-s = surf(X/1000, Y/1000, Z, 'EdgeColor', 'k', 'LineWidth',1);
+s = surf(X/1000, Y/1000, Z, 'EdgeColor', 'none');
 hold on;
-plot3(radar_1(1)/1000, radar_1(2)/1000, radar_1(3), ...
-      'ko', 'MarkerSize', 5, 'MarkerFaceColor', 'k', 'LineWidth', 2);
+plot3(radars(1)/1000, radars(2)/1000, radars(3), ...
+      'ko', 'MarkerSize', 10, 'MarkerFaceColor', 'yellow');
 colormap('jet');
 colorbar;
 view(20, 85);
 grid on;
 alpha(s, 0.8);
 title('3D Surface');
-xlabel('X Coordinate (meters)');
-ylabel('Y Coordinate (meters)');
-zlabel('Altitude (meters)');
+xlabel('X Coordinate [km]','FontSize',18);
+ylabel('Y Coordinate [km]','FontSize',18);
+zlabel('Altitude [m]','FontSize',18);
 
 %% 간단한 지형 생성
 % 위 코드 실행 먼저하고 실행
 
 grid_size = 181; % 시뮬레이션 환경 크기
-% Z = zeros(181, 181, 'double');
-visibility_matrix = ones(181, 181, 'double');
-% 언덕 생성
+% Z = zeros(130, 198, 'double');
+visibility_matrix = ones(130, 198, 'double');
+% 완만한 언덕 생성
 % center_x = X(1, round(grid_size/2));
 % center_y = Y(round(grid_size/2), 1);
 % center_x = 15000; center_y = 15000;
 % hill_radius = 6000;  % 언덕 반지름 (실제 거리 단위)
 % hill_height = 300;   % 언덕 최고 높이
 % sigma = hill_radius / 2; % 가우시안 표준 편차
-% 완만한 언덕
 % Z = hill_height * exp(-(((X - center_x).^2 + (Y - center_y).^2) / (2 * sigma^2)));
 % 원뿔 모양
 % distance = sqrt((X - center_x).^2 + (Y - center_y).^2);
 % Z(distance <= hill_radius) = hill_height * ...
 %     (1 - distance(distance <= hill_radius) / hill_radius);
+
+% very simple terrain에서 단일 레이더
+% radars = double([10000, 12000, 12]);
+% start_pos = [8300, 19000, 30];
+% end_pos = [18000, 7700, 30];
+
+% simple terrain에서 단일 레이더(가시성 항 검증)
+% radars = double([6600, 7100, 12]);
+% start_pos = [6900, 21000, 30];
+% end_pos = [25000, 5000, 30];
+% simple terrain의 가장 높은 고도에 레이더 설치
+% radars = double([15000, 15000, 312]);
+% start_pos = [6900, 21000, 30];
+% end_pos = [25000, 5000, 30];
 
 % very simple terrain에서 복수의 레이더 설치 위치
 % radars = [
@@ -216,15 +123,20 @@ visibility_matrix = ones(181, 181, 'double');
 % start_pos = [28000, 12000, 30];
 % end_pos = [3500, 17000, 30];
 
-% very simple terrain에서 단일 레이더
-% radars = double([10000, 12000, 12]);
-% start_pos = [8300, 19000, 30];
-% end_pos = [18000, 7700, 30];
+% 이전 평지에서 시작점 및 종료점
+% radars = double([40000, 60000, 130]);
+% start_pos = [11000, 19000, 200];
+% end_pos = [60000,60000,80];
+% 새로운 평지에서 좌표
+radars = double([18752, 16402, 269]);
+% start_pos = double([1233, 2276, 212]);
+start_pos = double([2506, 10918, 165]);
+end_pos = double([28499,27045,135]);
 
-% simple terrain에서 단일 레이더(가시성 항 검증)
-% radars = double([6600, 7100, 12]);
-% start_pos = [6900, 21000, 30];
-% end_pos = [22000, 4900, 30];
+% 산지에서 수행
+% radars = [45000, 60000, 750];
+% start_pos = [66000, 66000, 300];
+% end_pos = [20000, 10000, 500];
 
 figure;
 clf;
@@ -308,35 +220,35 @@ visibility_matrix = LOS_test_multi(radars, X, Y, Z);
 figure; clf;
 set(gcf, 'Position', [150, 75, 1200, 750]);
 hold on;
-s = surf(X, Y, Z, visibility_matrix, 'EdgeColor', 'k', 'LineWidth', 1, 'FaceAlpha', 0.5);
-h_start = plot3(start_pos(1), start_pos(2), start_pos(3), ...
-      'ks', 'MarkerSize', 15, 'MarkerFaceColor', 'w');
-h_end = plot3(end_pos(1), end_pos(2), end_pos(3), ...
-      'ks', 'MarkerSize', 15, 'MarkerFaceColor', 'g');
-h_radar = scatter3(radars(1), radars(2), radars(3), 50, 'yellow', 'filled');
-h_path = scatter3(path(:,1),path(:,2),path(:,3),60, 'k', 'filled');
+s = surf(X/1000, Y/1000, Z, visibility_matrix, 'EdgeColor', 'k', 'LineWidth', 1, 'FaceAlpha', 0.5);
+h_start = plot3(start_pos(1)/1000, start_pos(2)/1000, start_pos(3), ...
+      'ks', 'MarkerSize', 24, 'MarkerFaceColor', 'w');
+h_end = plot3(end_pos(1)/1000, end_pos(2)/1000, end_pos(3), ...
+      'ks', 'MarkerSize', 24, 'MarkerFaceColor', 'g');
+h_radar = scatter3(radars(1)/1000, radars(2)/1000, radars(3), 100, 'yellow', 'filled');
+% h_path = scatter3(path(:,1)/1000,path(:,2)/1000,path(:,3),60, 'k', 'filled');
 colormap([0 1 0; 1 0 0]);
 caxis([0 1]);
 cb = colorbar;
 cb.Ticks = [0, 1];
-cb.TickLabels = {'Invisible', 'Visible'};
+cb.TickLabels = {};
 cb_pos = cb.Position;
 x_text = cb_pos(1) + cb_pos(3) + 0.01;
 y_invisible = 0.25;
 y_visible = 0.75;
 annotation('textbox', [x_text, cb_pos(2) + cb_pos(4)*y_invisible, 0.06, 0.03], ...
            'String', 'Invisible', 'EdgeColor', 'none', 'Color', [0 0.6 0], ...
-           'FontWeight', 'bold', 'HorizontalAlignment', 'left');
+           'FontWeight', 'bold', 'HorizontalAlignment', 'left','FontSize',18);
 annotation('textbox', [x_text, cb_pos(2) + cb_pos(4)*y_visible, 0.06, 0.03], ...
            'String', 'Visible', 'EdgeColor', 'none', 'Color', [1 0 0], ...
-           'FontWeight', 'bold', 'HorizontalAlignment', 'left');
-legend([s, h_radar, h_path, h_start, h_end],{'Visibility Map', 'Radar Position', ...
-        'Optimized Path','Start Position', 'End Position'},'Location', 'best');
+           'FontWeight', 'bold', 'HorizontalAlignment', 'left','FontSize',18);
+legend([s, h_radar, h_start, h_end],{'Visibility Map', 'Radar Position', ...
+    'Start Position', 'End Position'},'Location', 'best','FontSize',18);
 view(-20, 85);
-title('LOS Visibility of RADAR');
-xlabel('X [km]');
-ylabel('Y [km]');
-zlabel('Altitude (meters)');
+title('Path Planning in Environment with LOS Obstructing Terrain','FontSize',18);
+xlabel('X Coordinate [km]','FontSize',18);
+ylabel('Y Coordinate [km]','FontSize',18);
+zlabel('Altitude [m]','FontSize',18);
 grid on;
 
 %% 가시성까지 고려된 환경에서 PSO 테스트
@@ -351,30 +263,54 @@ grid on;
 % radars = double([6600, 7100, 12]);
 % start_pos = [6900, 21000, 30];
 % end_pos = [25000, 5000, 30];
-% 이전 평지에서 시작점 및 종료점
-% start_pos = [0, 0, 200];
-% end_pos = [25000,34000,80];
-% 산지에서 시작점 및 종료점
-% start_pos = [11000, 16000, 150];
-% end_pos = [60000, 60000, 100];
-% end_pos = [1780, 5180, 450];
+
+
 % very simple terrain에서 복수의 레이더 설치 위치
-radars = [
-    21000, 11000, 12;
-    25000, 22000, 12;
-    18000, 26000, 12;
-    11000, 5000, 12; 
-    12000, 18000, 12];
-start_pos = [28000, 12000, 30];
-end_pos = [3500, 17000, 30];
+% radars = [
+%     21000, 11000, 12;
+%     25000, 22000, 12;
+%     18000, 26000, 12;
+%     11000, 5000, 12; 
+%     12000, 18000, 12];
+% start_pos = [28000, 12000, 30];
+% end_pos = [3500, 17000, 30];
 [path, sir_values, visibility_values] = PSO_visibility(radars, start_pos, end_pos, ...
     X, Y, Z, RADAR,visibility_matrix);
 
 %% PSO 결과 시각화
 
-% visualize_PSO_gray(path, SIR_matrix, radar_1, X, Y, Z, start_pos, end_pos);
-% 색상 맞춰야하나?
-visualize_PSO_SIR(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
+visualize_PSO_gray(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
+% visualize_PSO_SIR(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
+% visualize_Alt(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
+
+%% SIR 값 및 비행거리
+positions = path(:, 1:3);
+diffs = diff(positions);
+segment_distances = sqrt(sum(diffs.^2, 2));
+total_distance = sum(segment_distances);
+fprintf('총 이동 거리: %.3f km\n', total_distance / 1000);
+fprintf('최대값: %.3f dB\n',max(path(:,4)));
+fprintf('평균값: %.3f dB\n',mean(path(:,4)));
+fprintf('최소값: %.3f dB\n',min(path(:,4)));
+
+%% 등고선 있는 지형 그리기
+figure;
+clf;
+set(gcf, 'Position', [150, 75, 1200, 750]);
+s = surf(X/1000, Y/1000, Z, 'EdgeColor', 'none');  % 격자선 제거
+hold on;
+contour3(X/1000, Y/1000, Z, 10, 'k', 'LineWidth', 1.2); % 등고선 10개
+scatter3(radars(:,1)/1000, radars(:,2)/1000, radars(:,3), ...
+         150, 'filled', 'MarkerFaceColor', 'yellow', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5);
+colormap('gray');
+colorbar;
+caxis([min(Z(:)), max(Z(:))]);
+view(20, 85);
+grid on;
+alpha(s, 1);
+xlabel('X Coordinate [km]', 'FontSize', 22);
+ylabel('Y Coordinate [km]', 'FontSize', 22);
+zlabel('Altitude [m]', 'FontSize' ,22);
 
 %% path와 sir_data 길이 맞춤
 

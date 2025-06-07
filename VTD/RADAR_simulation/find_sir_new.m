@@ -63,7 +63,7 @@ function sig = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z)
     SNR = radareqsnr(lambda, Range, Pt, tau, 'Gain', G, 'Ts', Ts, 'RCS', rcs, 'CustomFactor', Fecl, 'Loss', L);
     % 클러터 RCS 계산
     h_r = double(radar_pos(3));  % 레이더 고도
-    h_t = target_pos(3); % 목표물 고도
+    h_t = target_pos(3)+100; % 목표물 고도
     theta_r = asin(min(1, max(-1, h_r / Range)));
     theta_e = asin(min(1, max(-1, (h_t - h_r) / Range)));
     Rg = Range * cos(theta_r);  % Ground Range

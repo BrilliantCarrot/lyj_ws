@@ -23,7 +23,7 @@ function [optimal_path, sir_values, visibility_values] = PSO_visibility(radars, 
     % sir_data = {};
     search_radius = 500;
     max_search_radius = 1500; % 정체 시 탐색 반경 증가
-    min_distance = 500;
+    min_distance = 1000;
     max_stagnation = 3;
     stagnation_count = 0;
     previous_gbest_score = inf;
@@ -149,7 +149,7 @@ function fitness = calculate_fitness(radars, active_radar, total_path_length, pa
     % 거리 기반 보상
     % dis_reward = 0.005;
     distance_to_goal = norm(particle_pos - end_pos);
-    k_goal = 100000;
+    k_goal = 300000; % 100000
     epsilon = 1e-3;
     goal_attraction_bonus = -k_goal / (distance_to_goal + epsilon);
     % if distance_to_goal < 10000
@@ -161,25 +161,25 @@ function fitness = calculate_fitness(radars, active_radar, total_path_length, pa
 
     % 진척률을 이용하여 목표점에 다가가도록 함
     progress = norm(particle_pos - start_pos) / total_path_length;
-    distance_reward = - 0.5 * progress;
+    distance_reward = -1.5 * progress;
 
     % 거리 역함수 기반 보상(가까워지면 폭발적으로 높은 보상 부여)
     epsilon = 1e-3;
-    k_close = 100000; % 가까움 보상 강도
+    k_close = 300000; % 200000
     goal_closeness_bonus = -k_close / (distance_to_goal + epsilon);
 
     % 가장 가까운 레이더로부터 최대한 멀어지는 경로점을 선호
     radar_distance = norm(particle_pos - active_radar);
-    % alpha = 0.003;
     % radar_distance_bonus = -alpha * radar_distance;
-    alpha_base = 0.005;
-    fade_range = 5000; % 목표점 3km 이내에선 감소
+    alpha_base = 0.001;
+    fade_range = 10000; % 목표점 #km 이내에선 감소
     if distance_to_goal < fade_range
         alpha = alpha_base * (distance_to_goal / fade_range);
     else
         alpha = alpha_base;
     end
     radar_distance_bonus = -alpha * radar_distance;
+    % radar_distance_bonus = 0;
 
     % 가시성에 감쇠 적용
     visibility_bonus = 0;
@@ -189,7 +189,12 @@ function fitness = calculate_fitness(radars, active_radar, total_path_length, pa
         visibility_bonus = -10 * weight;
     end
 
-    fitness = sir_value +  distance_to_goal * 0.1 + goal_attraction_bonus + goal_closeness_bonus + ...
+    % 고도차 패널티
+    alt_diff = norm(particle_pos(3), end_pos(3)); % 지형 고도
+    k_alt = 0.001;  % 고도차 페널티 계수
+    altitude_penalty = k_alt * alt_diff;
+
+    fitness = sir_value * 1.5 +  distance_to_goal * 0.01 + goal_attraction_bonus + goal_closeness_bonus + ...
         visibility_bonus + distance_reward + radar_distance_bonus;
     lookahead_cost = compute_lookahead_cost(radars, particle_pos, end_pos, start_pos, visibility_matrix, ...
         RADAR, X, Y, Z, lookahead_depth, lookahead_weight, search_radius);
@@ -230,8 +235,9 @@ function cost = compute_lookahead_cost(radars, cur_pos, end_pos, start_pos, visi
         weight = exp(-distance_to_goal / scale);
         if visibility_matrix(iy, ix) == 0 % 가려진 영역이면 보상 부여
             visibility_bonus = -10 * weight;
+            % visibility_bonus = 0;
         end
-        immed = sir_v + 0.005 * d2g + visibility_bonus;
+        immed = sir_v  + d2g * 0.01 + visibility_bonus;
         % 재귀 호출로 다음 스텝 비용
         future = compute_lookahead_cost(radars, c_pos, end_pos, start_pos, visibility_matrix, RADAR, X, Y, Z, depth-1, lookahead_weight, search_radius);
         costs(k) = immed + lookahead_weight * future;
