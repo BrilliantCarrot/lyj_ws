@@ -82,6 +82,7 @@ function sig = find_sir_new(radar_pos, target_pos, RADAR,X,Y,Z)
     SCR = rcs / sigma_clutter;
     SIR = 1 / ((1 / SNR) + (1 / SCR));
     SIR_dB = 10 * log10(SIR);
+    SNR_dB = 10 * log10(SNR);
     sig = SIR_dB;
 
     % if is_blocked

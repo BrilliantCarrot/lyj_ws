@@ -171,7 +171,7 @@ function fitness = calculate_fitness(radars, active_radar, total_path_length, pa
     % 가장 가까운 레이더로부터 최대한 멀어지는 경로점을 선호
     radar_distance = norm(particle_pos - active_radar);
     % radar_distance_bonus = -alpha * radar_distance;
-    alpha_base = 0.001;
+    alpha_base = 0.002;
     fade_range = 10000; % 목표점 #km 이내에선 감소
     if distance_to_goal < fade_range
         alpha = alpha_base * (distance_to_goal / fade_range);
@@ -194,7 +194,7 @@ function fitness = calculate_fitness(radars, active_radar, total_path_length, pa
     k_alt = 0.001;  % 고도차 페널티 계수
     altitude_penalty = k_alt * alt_diff;
 
-    fitness = sir_value * 1.5 +  distance_to_goal * 0.01 + goal_attraction_bonus + goal_closeness_bonus + ...
+    fitness = sir_value +  distance_to_goal * 0.005 + goal_attraction_bonus + goal_closeness_bonus + ...
         visibility_bonus + distance_reward + radar_distance_bonus;
     lookahead_cost = compute_lookahead_cost(radars, particle_pos, end_pos, start_pos, visibility_matrix, ...
         RADAR, X, Y, Z, lookahead_depth, lookahead_weight, search_radius);

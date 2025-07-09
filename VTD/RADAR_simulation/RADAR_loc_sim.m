@@ -68,7 +68,7 @@ function sig_matrix = RADAR_loc_sim(radars, X, Y, Z, RADAR)
 				SIR = 1 / ((1 / SNR) + (1 / SCR));
 				SIR_dB = 10 * log10(SIR);
 				SNR_dB = 10*log10(SNR);
-				sig_matrix(i, j) = max(sig_matrix(i,j), SIR_dB);
+				sig_matrix(i, j) = max(sig_matrix(i,j), SNR_dB);
 			end
 		end
 	end

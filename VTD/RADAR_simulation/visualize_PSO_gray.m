@@ -45,7 +45,7 @@ function visualize_PSO_gray(optimal_path, ~ , radar_pos, X, Y, Z, start_pos, end
     colormap(ax2, jet);
     caxis(ax2, [sir_min sir_max]);
     cb = colorbar(ax2, 'eastoutside');
-    cb.Label.String = 'SIR [dB]';
+    cb.Label.String = 'SNR [dB]';
     cb.Label.FontSize = 12;
 
 end

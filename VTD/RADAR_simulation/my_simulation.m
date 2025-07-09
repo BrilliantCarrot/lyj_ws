@@ -1,7 +1,7 @@
 % 레이더 가시성 테스트 메인 코드
 %% 초기화
 
-clear;
+
 % load C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat;
 % mountain = load ("C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat");
 load C:/Users/leeyj/lab_ws/data/VTD/RADAR/map_flat_land.mat;
@@ -10,7 +10,7 @@ Y = MAP.Y; % Y 좌표
 Z = MAP.alt; % 고도
 % 원래 방식으론 데이터 크기 문제로 인해 지형을 자른 특정 영역만 확인
 % 산지의 경우 
-x_min = 0; x_max = 40000; y_min = 0; y_max=40000;
+x_min = 0; x_max = 40000; y_min = 0; y_max = 40000;
 % 영역 축소 지형 
 % x_min = 0; x_max = 30000; y_min = 0; y_max = 30000;
 % 전체 영역
@@ -52,11 +52,9 @@ RADAR.c = 3e8;  % Speed of Light (m/s)
 RADAR.prf = 1000; % [Hz] Pulse repetition frequency
 RADAR.Du = RADAR.tau * RADAR.prf;
 rcs_table = RADAR.RCS1;
-% radars = double([45000, 60000, 750]); % 레이더 위치(산지)
-% radar_1 = double([10000, 10000, 230]); % 레이더 위치(이전 좁은 평지에서)
-% radars = double([40000, 60000, 130]); % 레이더 위치(새 평지에서)
-% radar_1 = double([18000, 24000, 20]); % 레이더 위치(very simple terrain에서)
-% radar_2 = [14000, 14000, 300];  % 레이더2 위치
+radars = double([18752, 16402, 269]);
+start_pos = double([2506, 10918, 165]);
+end_pos = double([28499,27045,135]);
 
 % load C:/Users/leeyj/lab_ws/data/VTD/RADAR/path_new.mat;
 % load C:/Users/leeyj/lab_ws/data/VTD/RADAR/path.mat;
@@ -84,8 +82,8 @@ zlabel('Altitude [m]','FontSize',18);
 % 위 코드 실행 먼저하고 실행
 
 grid_size = 181; % 시뮬레이션 환경 크기
-% Z = zeros(130, 198, 'double');
-visibility_matrix = ones(130, 198, 'double');
+Z = zeros(97, 147, 'double');
+visibility_matrix = ones(97, 147, 'double');
 % 완만한 언덕 생성
 % center_x = X(1, round(grid_size/2));
 % center_y = Y(round(grid_size/2), 1);
@@ -129,7 +127,6 @@ visibility_matrix = ones(130, 198, 'double');
 % end_pos = [60000,60000,80];
 % 새로운 평지에서 좌표
 radars = double([18752, 16402, 269]);
-% start_pos = double([1233, 2276, 212]);
 start_pos = double([2506, 10918, 165]);
 end_pos = double([28499,27045,135]);
 
@@ -182,7 +179,7 @@ zlabel('Altitude (meters)');
 % ylabel('Y Coordinate [km]');
 % zlabel('Altitude (meters)');
 
-%% 전체 지형에 대해 SIR 계산 (SIR 계산 테스트)
+%% 전체 지형에 대해 SIR(SNR) 계산 (SIR(SNR) 계산 테스트)
 
 SIR_matrix = RADAR_loc_sim(radars, X, Y, Z, RADAR);
 figure;
@@ -279,8 +276,8 @@ grid on;
 
 %% PSO 결과 시각화
 
-visualize_PSO_gray(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
-% visualize_PSO_SIR(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
+visualize_PSO_gray(path, SNR_matrix, radars, X, Y, Z, start_pos, end_pos);
+% visualize_PSO_SIR(path, SNR_matrix, radars, X, Y, Z, start_pos, end_pos);
 % visualize_Alt(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
 
 %% SIR 값 및 비행거리
