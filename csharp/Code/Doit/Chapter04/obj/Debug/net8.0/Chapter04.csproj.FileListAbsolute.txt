@@ -1,0 +1,15 @@
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\bin\Debug\net8.0\Chapter04.exe
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\bin\Debug\net8.0\Chapter04.deps.json
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\bin\Debug\net8.0\Chapter04.runtimeconfig.json
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\bin\Debug\net8.0\Chapter04.dll
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\bin\Debug\net8.0\Chapter04.pdb
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.AssemblyInfoInputs.cache
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.AssemblyInfo.cs
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.csproj.CoreCompileInputs.cache
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.sourcelink.json
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.dll
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\refint\Chapter04.dll
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.pdb
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\Chapter04.genruntimeconfig.cache
+C:\Users\leeyj\lyj_ws\csharp\Code\Doit\Chapter04\obj\Debug\net8.0\ref\Chapter04.dll

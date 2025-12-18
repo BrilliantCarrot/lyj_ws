@@ -46,7 +46,7 @@ namespace Packt.Shared
       dob = DateOfBirth;
     }
 
-    public void Deconstruct(out string name, 
+    public void Deconstruct(out string name,
       out DateTime dob, out WondersOfTheAncientWorld fav)
     {
       name = Name;
@@ -54,7 +54,8 @@ namespace Packt.Shared
       fav = FavoriteAncientWonder;
     }
 
-    // methods
+    // p.300 메서드 작성 및 호출하기
+    // 메서드에서 값 반환하기
     public void WriteToConsole()
     {
       WriteLine($"{Name} was born on a {DateOfBirth:dddd}.");
