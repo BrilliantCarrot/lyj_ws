@@ -194,7 +194,8 @@ function fitness = calculate_fitness(radars, active_radar, total_path_length, pa
     k_alt = 0.001;  % 고도차 페널티 계수
     altitude_penalty = k_alt * alt_diff;
 
-    fitness = sir_value +  distance_to_goal * 0.005 + goal_attraction_bonus + goal_closeness_bonus + ...
+    % 종합 요소가 고려된 비용 함수
+    fitness = sir_value +  distance_to_goal * 0.01 + goal_attraction_bonus + goal_closeness_bonus + ...
         visibility_bonus + distance_reward + radar_distance_bonus;
     lookahead_cost = compute_lookahead_cost(radars, particle_pos, end_pos, start_pos, visibility_matrix, ...
         RADAR, X, Y, Z, lookahead_depth, lookahead_weight, search_radius);
@@ -237,7 +238,8 @@ function cost = compute_lookahead_cost(radars, cur_pos, end_pos, start_pos, visi
             visibility_bonus = -10 * weight;
             % visibility_bonus = 0;
         end
-        immed = sir_v  + d2g * 0.01 + visibility_bonus;
+        % 재귀 함수의 비용 함수
+        immed = sir_v  + d2g * 0.01 + visibility_bonus * 0;
         % 재귀 호출로 다음 스텝 비용
         future = compute_lookahead_cost(radars, c_pos, end_pos, start_pos, visibility_matrix, RADAR, X, Y, Z, depth-1, lookahead_weight, search_radius);
         costs(k) = immed + lookahead_weight * future;

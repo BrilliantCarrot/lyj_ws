@@ -2,7 +2,6 @@ clear;
 clc;
 close all;
 
-%% << 매트랩 웹 페이지 제공 클러터 생성 튜토리 >>
 %% 1. Configure Scenario for Clutter Generation
 % Introduction to Radar Scenario Clutter Simulation
 
@@ -251,41 +250,7 @@ platform(scenario,'Position',[8e3  2e3 0],'Signatures',rcsSignature('Pattern',tg
 
 rangeGates = (0:ceil((unambRange-rngRes)/rngRes))*rngRes;
 frame = 0;
-% while advance(scenario)
-%     frame = frame + 1;
-% 
-%     [iqsig,info] = receive(scenario);
-% 
-%     lookAng(:,frame) = info.ElectronicAngle;
-%     rangeProfiles(:,frame) = 20*log10(abs(sum(iqsig{1},2)));
-% 
-%     if frame == 1
-%         % Initial plotting
-%         ax(1) = subplot(1,2,1);
-%         helperPlotClutterScenario(scenario,[],[],ax(1))        
-%         ax(2) = subplot(1,2,2);
-%         rpHndl = plot(ax(2),rangeGates/1e3,rangeProfiles(:,frame));
-%         tHndl=title(sprintf('Frame: %d, Azimuth: %.1f deg',frame,lookAng(1,frame)));
-%         grid on
-%         xlabel('Range (km)')
-%         ylabel('Range Profile (dBW)')
-%     else
-%         % Update plots
-%         helperPlotClutterScenario(scenario,[],[],ax(1))
-%         rpHndl.YData = rangeProfiles(:,frame);
-%         tHndl.String = sprintf('Frame: %d, Azimuth: %.1f deg',frame,lookAng(1,frame));
-%     end
-% 
-%     drawnow limitrate nocallbacks
-% end 
-% 
-% figure
-% imagesc(lookAng(1,:),rangeGates/1e3,rangeProfiles);
-% set(gca,'ydir','normal')
-% xlabel('Azimuth Scan Angle (deg)')
-% ylabel('Range (km)')
-% title('Clutter Range Profiles (dBW)')
-% colorbar
+
 
 %% 5. Simulate Smooth Surface Clutter for a Range-Doppler Radar
 % Up till now you have simulated surface clutter using the "uniform" scatterer distribution mode. 
@@ -400,8 +365,7 @@ title('RDM - without terrain shadowing')
 % for flat-Earth scenarios with smooth surfaces.
 
 %% << CFAR Detection >>
-%% 북한 창도군 지형 DTED에 클러터 적용
-%% 1. 창도군 지형 데이터 Import
+%% 1. 지형 데이터 Import
 % (80km*80km의 경우 데이터 로드 5분 소요)
 
 close all;
@@ -755,7 +719,7 @@ grid on;
 % fprintf('CNR과 SCR을 전부 고려하였을 시 요구되는 추가 SNR: %.2f dB\n', required_SNR_cluttered_dB);
 % fprintf('CNR을 고려 안하였을 시 요구되는 추가 SNR: %.2f dB\n', required_SNR_without_CNR);
 
-%% 책 참고하여 산출한 sigma c 값
+%% sigma c 값
 
 c = 3e8;                      % 전파 속도 (m/s)
 lambda = freq2wavelen(3e9);   % 파장 (m), 3 GHz
@@ -899,32 +863,6 @@ grid on;
 % The radar platform is flying 1 km above the ground with a path parallel to the ground along the array axis. 
 % The platform speed is 2 km/s. The mainlobe has a depression angle of 30°.
 
-% S-Band 레이더의 경우 파라미터 설정
-% Sensor를 설정하기위하여 array = phased.ULA
-% prf = 3.0e3 X -> 1.0e3
-% height 레이더 설치 위치, 30
-% direction은 플랫폼 이동 방향으로 정지되어있는 경우 플랫폼 이동 속도를 0으로 설정하여 이 값을 무시하도록 설정
-% speed = 0
-% c = physconst('Lightspeed');
-% fc = 3e9
-% fs = 20e6
-% lambda = c/fc;
-% tergamma는 surfacegamma 함수 파라미터로 'wooded hill' 선정하여 결과 이용, wooded hill의 경우 -10
-% tpower는 peak power 또는 transmit power와 antenna gain의 곱으로 표현, 1500 x 34 = 51e3 
-
-% X-Band 레이더의 경우 파라미터 설정
-% Sensor를 설정하기위하여 array = phased.ULA
-% prf = 2.2e3
-% height 레이더 설치 위치, 30
-% direction은 플랫폼 이동 방향으로 정지되어있는 경우 플랫폼 이동 속도를 0으로 설정하여 이 값을 무시하도록 설정
-% speed = 0
-% c = physconst('Lightspeed');
-% fc = 9e9
-% fs = 20e6
-% lambda = c/fc;
-% tergamma = 'wooded hill'
-% tpower = 6000 x 39 = 234,000 = 234e6
-
 clear;
 clc;
 close all;
@@ -1046,92 +984,3 @@ end
 response = phased.AngleDopplerResponse('SensorArray',ula,...
     'OperatingFrequency',fc,'PropagationSpeed',c,'PRF',prf);
 plotResponse(response,shiftdim(sig(20,:,:)),'NormalizeDoppler',true)
-
-%% constantGammaClutter_2
-
-% clear;
-% clc;
-% close all;
-% 
-% % 레이더 및 클러터 설정
-% Nele = 4;
-% c = physconst('Lightspeed');
-% fc = 300.0e6;
-% lambda = c/fc;
-% array = phased.ULA('NumElements',Nele,'ElementSpacing',lambda/2);
-% fs = 1.0e6;
-% prf = 10.0e3;
-% height = 1000.0;
-% direction = [90;0];
-% speed = 2.0e3;
-% depang = 30.0;
-% mountingAng = [depang,0,0];
-% 
-% % 클러터 시뮬레이션 객체 생성
-% Rmax = 5000.0;
-% Azcov = 120.0;
-% tergamma = 0.01; % 감마 값 설정 (클러터 반사율)
-% tpower = 5000.0;
-% clutter_test = constantGammaClutter('Sensor',array,...
-%     'PropagationSpeed',c,'OperatingFrequency',fc,'PRF',prf,...
-%     'SampleRate',fs,'Gamma',tergamma,'EarthModel','Flat',...
-%     'TransmitERP',tpower,'PlatformHeight',height,...
-%     'PlatformSpeed',speed,'PlatformDirection',direction,...
-%     'MountingAngles',mountingAng,'ClutterMaxRange',Rmax,...
-%     'ClutterAzimuthSpan',Azcov,'SeedSource','Property',...
-%     'Seed',40547);
-% 
-% % 10개의 펄스에 대한 클러터 신호 시뮬레이션
-% Nsamp = fs/prf;
-% Npulse = 10;
-% sig = zeros(Nsamp,Nele,Npulse);
-% for m = 1:Npulse
-%     sig(:,:,m) = clutter_test();
-% end
-% 
-% % 클러터 신호 생성 (평균 펄스)
-% clutterSig = zeros(Nsamp, Nele);
-% for m = 1:Npulse
-%     clutterSig = clutterSig + abs(clutter_test());
-% end
-% clutterSig = clutterSig / Npulse;
-% 
-% % 신호 전력 및 클러터 전력 계산
-% signalPower = mean(abs(sig(:)).^2);        % 신호 전력 계산
-% clutterPower = mean(abs(clutterSig(:)).^2); % 클러터 전력 계산
-% 
-% % SNR 계산
-% SNR = 10 * log10(signalPower / clutterPower);
-% disp(['SNR: ', num2str(SNR), ' dB']);
-% 
-% % 각도-도플러 응답 표시
-% response = phased.AngleDopplerResponse('SensorArray',array,...
-%     'OperatingFrequency',fc,'PropagationSpeed',c,'PRF',prf);
-% plotResponse(response,shiftdim(sig(20,:,:)),'NormalizeDoppler',true)
-
-% surfacegamma - gamma value for different terrains
-
-% fc = 3e9;
-% g = surfacegamma('Flatland',fc);
-% clutter_2 = constantGammaClutter('Gamma',g, ...
-%      ...
-%     'OperatingFrequency',fc);
-% x = clutter_2();
-% r = (0:numel(x)-1)/(2*clutter_2.SampleRate) * ...
-%     clutter_2.PropagationSpeed;
-% plot(r,abs(x))
-% xlabel('Range (m)')
-% ylabel('Clutter Magnitude (V)')
-% title('Clutter Return vs. Range')
-
-
-% surfacegamma Test 2
-
-% fc = 300e6;
-% g = surfacegamma('woods',fc);
-% hclutter = constantGammaClutter('Gamma',g,...
-%       'Sensor',phased.CosineAntennaElement,'OperatingFrequency',fc);
-% x = step(hclutter);
-% r = (0:numel(x)-1)/(2*hclutter.SampleRate)*hclutter.PropagationSpeed;
-% plot(r,abs(x)); xlabel('Range (m)'); ylabel('Clutter Magnitude (V)');
-% title('Clutter Return vs. Range');

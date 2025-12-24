@@ -28,7 +28,7 @@ scatter3(radars(:,1)/1000, radars(:,2)/1000, radars(:,3), ...
     grid on;
     h_radar = scatter3(radars(:,1)/1000, radars(:,2)/1000, radars(:,3),100, 'yellow', 'filled');
     h_path = scatter3(optimal_path(:,1)/1000,optimal_path(:,2)/1000,optimal_path(:,3),60, 'k', 'filled');
-    legend([s, h_radar, h_path, h_start, h_end],{'SNR distribution', 'Radar Position', ...
+    legend([s, h_radar, h_path, h_start, h_end],{'SIR distribution', 'Radar Position', ...
         'Optimized Path','Start Position', 'End Position'},'Location', 'best','FontSize',18);
     % 옆에 따로 컬러바 생성
     figure;
@@ -38,6 +38,6 @@ scatter3(radars(:,1)/1000, radars(:,2)/1000, radars(:,3), ...
     cb = colorbar(ax2, 'eastoutside');
     cb.Label.Color = 'k'; % 라벨 글자색
     cb.Color = 'k'; % 눈금 숫자(티크 텍스트) 색상     
-    cb.Label.String = 'SNR [dB]';
+    cb.Label.String = 'SIR [dB]';
     cb.Label.FontSize = 12;
 end

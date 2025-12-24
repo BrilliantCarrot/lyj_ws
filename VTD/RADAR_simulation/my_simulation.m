@@ -43,7 +43,7 @@ RADAR.tau = 0.0001;  % [s] Pulse Width
 RADAR.G = 39;  % [dBi] Antenna Gain
 RADAR.Ts = 290;  % [K] System Temperature
 RADAR.L = 8.17;  % [dB] Loss
-RADAR.sigma_0 = 10^(-20/10);  % Clutter Scattering Coefficient
+RADAR.sigma_0 = 10^(-5/10);  % Clutter Scattering Coefficient
 RADAR.theta_A = deg2rad(1);  % Azimuth Beamwidth
 RADAR.theta_E = deg2rad(2);  % Elevation Beamwidth
 RADAR.SL_rms = 10^(-20.10);  % RMS Sidelobe Level
@@ -112,14 +112,14 @@ visibility_matrix = ones(97, 147, 'double');
 % end_pos = [25000, 5000, 30];
 
 % very simple terrain에서 복수의 레이더 설치 위치
-% radars = [
-%     21000, 11000, 12;
-%     25000, 22000, 12;
-%     18000, 26000, 12;
-%     11000, 5000, 12; 
-%     12000, 18000, 12];
-% start_pos = [28000, 12000, 30];
-% end_pos = [3500, 17000, 30];
+radars = [
+    21000, 11000, 12;
+    25000, 22000, 12;
+    18000, 26000, 12;
+    11000, 5000, 12; 
+    12000, 18000, 12];
+start_pos = [28000, 12000, 30];
+end_pos = [3500, 17000, 30];
 
 % 이전 평지에서 시작점 및 종료점
 % radars = double([40000, 60000, 130]);
@@ -276,8 +276,8 @@ grid on;
 
 %% PSO 결과 시각화
 
-visualize_PSO_gray(path, SNR_matrix, radars, X, Y, Z, start_pos, end_pos);
-% visualize_PSO_SIR(path, SNR_matrix, radars, X, Y, Z, start_pos, end_pos);
+visualize_PSO_gray(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
+% visualize_PSO_SIR(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
 % visualize_Alt(path, SIR_matrix, radars, X, Y, Z, start_pos, end_pos);
 
 %% SIR 값 및 비행거리
@@ -320,58 +320,6 @@ zlabel('Altitude [m]', 'FontSize' ,22);
 %     end
 % end
 
-%% 지형 불러오기
-
-radar_1 = [10000, 10000, 230];
-% load C:/Users/leeyj/lab_ws/data/VTD/RADAR/map_flat_land.mat;
-load C:/Users/leeyj/lab_ws/data/VTD/RADAR/DTED_mountain.mat;
-X = MAP.X; % X 좌표
-Y = MAP.Y; % Y 좌표
-Z = MAP.alt; % 고도
-x_min = 0; x_max = 30000;
-y_min = 0; y_max = 40000;
-% X와 Y 범위에 해당하는 인덱스 계산
-x_idx = (X(1, :) >= x_min) & (X(1, :) <= x_max);
-y_idx = (Y(:, 1) >= y_min) & (Y(:, 1) <= y_max);
-X = double(X(y_idx, x_idx));
-Y = double(Y(y_idx, x_idx));
-Z = double(Z(y_idx, x_idx));
-dx = 10;
-dy = 10;
-% 자른 간격으로 지형 단순화
-X_reduced = X(1:dy:end, 1:dx:end); % X 데이터 축소
-Y_reduced = Y(1:dy:end, 1:dx:end); % Y 데이터 축소
-Z = Z(1:dy:end, 1:dx:end); % Z 데이터 축소
-% 정규화 및 Y 좌표 방향 수정
-X = X_reduced - min(min(X_reduced)); % X 좌표를 0부터 시작
-Y = Y_reduced - min(min(Y_reduced)); % Y 좌표를 0부터 시작
-% visualize_PSO_SIR_2(path, sir_data, sir_values, visibility_values, radar_1, X, Y, Z);
-figure;
-clf;
-set(gcf, 'Position', [150, 75, 1200, 750]); % [left, bottom, width, height]
-s = surf(X/1000, Y/1000, Z, 'EdgeColor', 'k', 'LineWidth',1);
-hold on;
-plot3(radar_1(1)/1000, radar_1(2)/1000, radar_1(3), ...
-      'ko', 'MarkerSize', 5, 'MarkerFaceColor', 'k', 'LineWidth', 2);
-colormap('jet');
-colorbar;
-view(20, 85);
-grid on;
-alpha(s, 0.8);
-title('3D Surface');
-xlabel('X Coordinate (meters)');
-ylabel('Y Coordinate (meters)');
-zlabel('Altitude (meters)');
-
-%% 가시성까지 고려된 환경에서 PSO 테스트
-
-[path, sir_values] = PSO_visibility(radars, start_pos, end_pos, X, Y, Z, RADAR,visibility_matrix);
-
-%% PSO 결과 시각화
-
-% visualize_PSO_gray(path, sir_data, radar_1, X, Y, Z);
-% visulaize_PSO_SIR_3(path, SIR_matrix, );
-
 %% 추출된 path를 잇는 코드
 
 num_points = 500; % 원하는 보간 후 총 좌표 개수
@@ -397,200 +345,115 @@ path_new = [x_interp', y_interp', z_interp'];
 % save('path_new.mat', 'path_new');
 waypoints = path_new;
 
-%%
+%% Pioneer-UAV 3-DoF kinematic check 먼저꺼
+g   = 9.81;
+V   = 35;           % [m/s]
+phi = deg2rad(30);  % max bank
+w_max = g*tan(phi)/V;     % [rad/s]
+dt = 1;       % [s]    시뮬레이션 time-step
+traj = wp(1,:);   % 궤적 저장 (첫 점)
 
-waypoints = path;
-n_waypoints = size(waypoints, 1);
+% Way-points (x, y, z) — SIR column 제거
+wp = [ ...
+  2506, 10918, 165;
+  3594.0903, 11962.1265, 185;
+  4637.0380, 13003.6599, 174;
+  6492.7718, 13100.4659, 189;
+  7627.5630, 14323.4300, 178;
+  9068.7965, 15423.3373, 178;
+  10789.7598,16378.4867, 177;
+  11498.5064,17617.4925, 146;
+  12315.8553,18966.2986, 144;
+  11916.3545,19948.6526, 132;
+  12749.4005,21731.3480, 121;
+  13303.8640,23161.1207, 123;
+  14423.6718,23984.6662, 119;
+  15724.4811,24190.3060, 111;
+  18007.7107,24633.6045, 108;
+  19423.8754,25543.3604, 106;
+  21411.5766,25834.1743, 154;
+  22897.3594,26129.3680, 148;
+  24229.9355,26452.4642, 134;
+  25739.1678,26508.7515, 137;
+  27239.3280,26866.2296, 141;
+  28526.0935,27045.0197, 137 ];
 
-% Simulation parameters
-dt = 0.1;  % Time step (s)
-T_final = 100; % Total simulation time (s)
-g = 9.81; % Gravity (m/s^2)
+% heading-change / turn-rate check
+% hdg     = atan2(diff(wp(:,2)), diff(wp(:,1)));
+% ok_flag = true;
+% for i = 2:numel(hdg)
+%     dpsi      = abs(atan2(sin(hdg(i)-hdg(i-1)), cos(hdg(i)-hdg(i-1))));
+%     seg_len   = norm(wp(i,1:2)-wp(i-1,1:2));
+%     w_req     = dpsi / (seg_len/V);
+%     if w_req > w_max
+%         fprintf('Segment %d exceeds φ_max: %.1f deg/s\n', i, rad2deg(w_req));
+%         ok_flag = false;
+%     end
+% end
+% if ok_flag
+%     disp('All segments flyable within bank-angle limits.');
+% end
+% 
+% % 3-D plot
+% figure; plot3(wp(:,1), wp(:,2), wp(:,3),'-o','LineWidth',1.5);
+% grid on; xlabel('X Coordinate [m]'); ylabel('Y Coordinate [m]'); zlabel('Altitude [m]');
+% title('비행 경로점에 대한 간단한 3 자유도 동역학 적용 비행체의 비행 결과');
+% view(30,25);
 
-% Initial aircraft state
-pos = waypoints(1, :);  % Initial position (x, y, z)
-vel = [50, 0, 0];        % Initial velocity [m/s] (assuming forward motion)
-angles = [0, 0, 0];     % Euler angles [phi (roll), theta (pitch), psi (yaw)]
-omega = [0, 0, 0];      % Angular velocity [rad/s]
+%% Pioneer-UAV 3-DoF kinematic check 추력, 항력, 중력 적용한 버전
 
-% Inertia matrix (simplified aircraft model)
-I_body = diag([5000, 6000, 7000]);
+m   = 12;              % [kg]
+S   = 1.0;             % [m^2] 날개 면적
+rho = 1.225;           % [kg/m^3]
+Cd0 = 0.05;            % zero-lift drag
+K   = 0.08;            % induced-drag factor
+V0  = 33;              % [m/s]  trim speed
+Tmax= 60;              % [N] 엔진 최대 출력
+phi_max = deg2rad(30); % [rad] 최대 bank각
+g   = 9.81;
+dt   = 0.1;            
+traj = wp(1,:);        % 위치 기록용 변수
+V    = V0;             % 비행체 초기 속도
+chi  = heading2(wp(1,:),wp(2,:));                 % 초기 침로 [rad]
+CL_fun = @(V) 2*m*g /(rho*S*V^2);                 % 수평·등속 가정
+CD_fun = @(CL) Cd0 + K*CL.^2;
+D_fun  = @(V) 0.5*rho*S*CD_fun(CL_fun(V)).*V.^2;  % 항력
 
-% Simulation loop
-state_log = [];
-time = 0;
-wp_idx = 2; % Start from second waypoint
+for k = 1:size(wp,1)-1
+    goal = wp(k+1,:);
+    while true
+        % --- 유도 로직: heading error → 목표 침로로 회전
+        chi_c = heading2(traj(end,:), goal);          % [rad]
+        dchi  = wrapToPi(chi_c - chi);
+        % 은행각 명령 (비례제어 + 제한)
+        phi_cmd = max(min(dchi, phi_max), -phi_max);
 
-while time < T_final && wp_idx <= n_waypoints
-    % Current waypoint target
-    target = waypoints(wp_idx, :);
-    
-    % Compute desired direction
-    direction = target - pos;
-    dist = norm(direction);
-    if dist < 50  % If close to waypoint, move to next
-        wp_idx = wp_idx + 1;
-        continue;
-    end
-    
-    direction = direction / dist; % Normalize direction vector
-    
-    % Simple proportional guidance control for velocity
-    desired_vel = direction * norm(vel);
-    acc_cmd = (desired_vel - vel) / dt;
-    
-    % Update velocity and position
-    vel = vel + acc_cmd * dt;
-    pos = pos + vel * dt;
-    
-    % Compute desired yaw angle
-    psi_desired = atan2(direction(2), direction(1));
-    yaw_rate_cmd = (psi_desired - angles(3)) / dt;
-    
-    % Update angular velocity and angles (simplified dynamics)
-    omega(3) = yaw_rate_cmd; % Only update yaw rate for now
-    angles = angles + omega * dt;
-    
-    % Log state
-    state_log = [state_log; time, pos, vel, angles];
-    
-    % Time update
-    time = time + dt;
-end
+        % 3 자유도 질점 동역학 적용
+        gamma  = atan2(goal(3) - traj(end,3), norm(goal(1:2)-traj(end,1:2)));
+        qdot   = (g*tan(phi_cmd))/V;
+        Vdot   = (Tmax - D_fun(V) - m*g*sin(gamma))/m;
 
-% Convert log to struct
-sim_data.time = state_log(:, 1);
-sim_data.pos = state_log(:, 2:4);
-sim_data.vel = state_log(:, 5:7);
-sim_data.angles = state_log(:, 8:10);
+        chi  = chi + qdot*dt;
+        V    = V  + Vdot*dt;
+        pos  = traj(end,:) + [V*cos(gamma)*cos(chi) ...
+                              V*cos(gamma)*sin(chi) ...
+                              V*sin(gamma)]*dt;
 
-% Plot results
-figure;
-plot3(waypoints(:,1), waypoints(:,2), waypoints(:,3), 'ro-', 'LineWidth', 2);
-hold on;
-plot3(sim_data.pos(:,1), sim_data.pos(:,2), sim_data.pos(:,3), 'b-', 'LineWidth', 1.5);
-grid on;
-xlabel('X [m]'); ylabel('Y [m]'); zlabel('Z [m]');
-title('6DoF Aircraft Path Following Simulation');
-legend('Waypoints', 'Aircraft Path');
+        traj = [traj; pos];
 
-%% 무게 고려 6DoF
-
-% 시뮬레이션 파라미터 및 초기 상태 변수 설정
-dt = 0.1; % 시간 간격 (초)
-Tmax = 2000; % 최대 시뮬레이션 시간 (초)
-velocity = 100; % 초기 항공기 속도 (m/s)
-N = 3; % PNG 비율 Gain
-pos = waypoints(1, :); % 시작점
-target_idx = 2; % 다음 웨이포인트 인덱스
-quat = [1 0 0 0]; % 초기 쿼터니언 (롤, 피치, 요 회전 상태)
-traj = [];
-time = 0;
-
-% 항공기 물리적 특성
-mass = 1000; % 항공기 질량 (kg)
-thrust = 5000; % 추력 (N)
-gravity = [0 0 -9.81 * mass]; % 중력 가속도
-Cd = 0.05; % 항력 계수
-density = 1.225; % 공기 밀도 (kg/m^3)
-A = 10; % 항공기 단면적 (m^2)
-
-% 시뮬레이션 루프
-while target_idx <= size(waypoints, 1) && time < Tmax
-    target = waypoints(target_idx, :);
-    rel_pos = target - pos;
-    range = norm(rel_pos);
-    direction = rel_pos / range; % 목표 방향 벡터
-    
-    % 목표에 도달하면 다음 웨이포인트로 변경
-    if range < 50
-        target_idx = target_idx + 1;
-        if target_idx > size(waypoints, 1)
-            break;
+        % 웨이포인트에 도달하면 다음 웨이포인트로 비행
+        if norm(pos - goal) < 10
+            break
         end
-        continue;
     end
-    
-    % 목표 웨이포인트를 향한 직선 추종
-    velocity_vector = velocity * direction;
-    
-    % 공기 저항 계산
-    speed = norm(velocity_vector);
-    drag_force = 0.5 * density * speed^2 * A * Cd * (-velocity_vector / speed);
-    
-    % 총 가속도 계산 (추력, 공기저항, 중력 고려)
-    force_total = thrust * direction + drag_force + gravity;
-    acceleration = force_total / mass;
-    
-    % 속도 및 위치 업데이트
-    vel = velocity_vector + acceleration * dt;
-    pos = pos + vel * dt;
-    yaw = atan2(vel(2), vel(1)); % 오일러 각도 업데이트 (기본적인 요(Psi) 회전 반영)
-    pitch = atan2(-vel(3), sqrt(vel(1)^2 + vel(2)^2));
-    roll = 0; % 간단한 모델에서 롤은 유지
-    quat = eul2quat([yaw pitch roll]); % 쿼터니언 업데이트
-    
-    traj = [traj; pos];
-    time = time + dt;
 end
 
-figure;
-hold on;
-plot3(waypoints(:, 1), waypoints(:, 2), waypoints(:, 3), 'ro-', 'LineWidth', 1); % 원래 웨이포인트
-plot3(traj(:, 1), traj(:, 2), traj(:, 3), 'b-', 'LineWidth', 2); % 비행 궤적
-scatter3(waypoints(:, 1), waypoints(:, 2), waypoints(:, 3), 1, 'r', 'filled');
-scatter3(traj(end, 1), traj(end, 2), traj(end, 3), 80, 'g', 'filled'); % 최종 위치
-xlabel('X (m)');
-ylabel('Y (m)');
-zlabel('Altitude (m)');
-title('6-DOF Flight Simulation with Direct Waypoint Following');
-grid on;
-view(3);
-legend('Waypoints', 'Flight Path', 'Start/End Points');
+figure
+plot3(traj(:,1)/1000,traj(:,2)/1000,traj(:,3),'b-','LineWidth',1.4); hold on
+plot3(wp(:,1)/1000,wp(:,2)/1000,wp(:,3),'ro','LineWidth',1.2)
+grid on; xlabel('X Coordinate[km]'); ylabel('Y Coordinate[km]'); zlabel('Altitude [m]');
+% title('Pioneer UAV 3-DoF Trajectory (Forces: T, D, mg)');
+legend('Pioneer UAV Trajectory','Waypoints','Location','best');
+view(35,25)
 
-%% 이전 6DoF - PNG(TPN)
-dt = 0.1; % 시간 간격 (초)
-Tmax = 2000; % 최대 시뮬레이션 시간 (초)
-velocity = 100; % 항공기 속도 (m/s)
-N = 3; % PNG 비율 Gain
-pos = waypoints(1, :); % 시작점
-target_idx = 2; % 다음 웨이포인트 인덱스
-quat = [1 0 0 0]; % 초기 쿼터니언 (롤, 피치, 요 회전 상태)
-traj = [];
-time = 0; 
-while target_idx <= size(waypoints, 1) && time < Tmax
-    target = waypoints(target_idx, :);
-    rel_pos = target - pos;
-    range = norm(rel_pos);
-    if range < 50
-        target_idx = target_idx + 1;
-        if target_idx > size(waypoints, 1)
-            break;
-        end
-        continue;
-    end
-    % PNG 유도 - 선속도를 유지하며 조향 각도 결정
-    LOS_rate = cross([0 0 velocity], rel_pos) / range^2; % LOS 변화율
-    acc_cmd = N * cross(LOS_rate, [0 0 velocity]); % 유도 가속도
-    vel = velocity * rel_pos / range + acc_cmd * dt;
-    pos = pos + vel * dt;
-    yaw = atan2(vel(2), vel(1)); % 오일러 각도 업데이트 (기본적인 요(Psi) 회전 반영)
-    pitch = atan2(-vel(3), sqrt(vel(1)^2 + vel(2)^2));
-    roll = 0; % 간단한 모델에서 롤은 유지
-    quat = eul2quat([yaw pitch roll]); % 쿼터니언 업데이트
-    traj = [traj; pos];
-    time = time + dt;
-end
-figure;
-hold on;
-plot3(waypoints(:, 1), waypoints(:, 2), waypoints(:, 3), 'ro-', 'LineWidth', 1); % 원래 웨이포인트
-plot3(traj(:, 1), traj(:, 2), traj(:, 3), 'b-', 'LineWidth', 2); % 비행 궤적
-scatter3(waypoints(:, 1), waypoints(:, 2), waypoints(:, 3), 1, 'r', 'filled');
-scatter3(traj(end, 1), traj(end, 2), traj(end, 3), 80, 'g', 'filled'); % 최종 위치
-xlabel('X (m)');
-ylabel('Y (m)');
-zlabel('Altitude (m)');
-title('6-DOF Flight Simulation with PNG');
-grid on;
-view(3);
-legend('Waypoints', 'Flight Path', 'Start/End Points');
+fprintf('Total sim time ≈ %.1f s  |  samples = %d \n', size(traj,1)*dt, size(traj,1));

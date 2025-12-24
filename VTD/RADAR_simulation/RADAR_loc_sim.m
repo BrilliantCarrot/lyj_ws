@@ -9,7 +9,8 @@ function sig_matrix = RADAR_loc_sim(radars, X, Y, Z, RADAR)
     G = RADAR.G;
     Ts = RADAR.Ts;
     L = RADAR.L;
-    sigma_0 = RADAR.sigma_0;
+    % sigma_0 = RADAR.sigma_0;
+    sigma_0 = 10^(-20/10);
     theta_A = RADAR.theta_A;
     theta_E = RADAR.theta_E;
     SL_rms = RADAR.SL_rms;
@@ -68,7 +69,7 @@ function sig_matrix = RADAR_loc_sim(radars, X, Y, Z, RADAR)
 				SIR = 1 / ((1 / SNR) + (1 / SCR));
 				SIR_dB = 10 * log10(SIR);
 				SNR_dB = 10*log10(SNR);
-				sig_matrix(i, j) = max(sig_matrix(i,j), SNR_dB);
+				sig_matrix(i, j) = max(sig_matrix(i,j), SIR_dB);
 			end
 		end
 	end
