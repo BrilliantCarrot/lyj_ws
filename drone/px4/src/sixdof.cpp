@@ -6,7 +6,7 @@
 #include <string>
 
 // =====================
-// Minimal 3D vector
+// x, y, z 3차원 벡터
 // =====================
 struct Vec3 {
     double x{0}, y{0}, z{0};
@@ -34,8 +34,8 @@ struct Vec3 {
 inline Vec3 operator*(double s, const Vec3& v) { return v * s; }
 
 // =====================
-// Quaternion (w, x, y, z)
-// Represents rotation from body to world when used as q * v_body * q_conj.
+// 쿼터니언 (w, x, y, z)
+// q * v_body * q_conj. 같이 바디에서 지구로의 회전을 표현
 // =====================
 struct Quat {
     double w{1}, x{0}, y{0}, z{0};
@@ -47,7 +47,7 @@ struct Quat {
     Quat operator*(double s) const { return {w*s, x*s, y*s, z*s}; }
 
     static Quat multiply(const Quat& a, const Quat& b) {
-        // Hamilton product a*b
+        
         return {
             a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z,
             a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y,
@@ -56,31 +56,31 @@ struct Quat {
         };
     }
 
-    Quat conj() const { return {w, -x, -y, -z}; }
+    Quat conj() const { return {w, -x, -y, -z}; } // 역회전 함수
 
     void normalize() {
         const double n = std::sqrt(w*w + x*x + y*y + z*z);
         if (n > 0) { w /= n; x /= n; y /= n; z /= n; }
         else { w = 1; x = y = z = 0; }
-    }
+    } // 수치적분 오차 해결 정규화
 
     Vec3 rotateBodyToWorld(const Vec3& v_body) const {
         // v_world = q * [0,v] * q_conj
         Quat vq{0, v_body.x, v_body.y, v_body.z};
         Quat out = multiply(multiply(*this, vq), this->conj());
         return {out.x, out.y, out.z};
-    }
+    } // 바디에서 지구로 회전(바디 힘/속도/축 벡터를 월드로)
 
     Vec3 rotateWorldToBody(const Vec3& v_world) const {
         // v_body = q_conj * [0,v] * q
         Quat vq{0, v_world.x, v_world.y, v_world.z};
         Quat out = multiply(multiply(this->conj(), vq), *this);
         return {out.x, out.y, out.z};
-    }
+    } // 지구에서 바디로 회전(월드에 있는 벡터를 기체 기준으로 변환)
 };
 
 // =====================
-// State and derivative
+// State & derivative
 // =====================
 struct State {
     Vec3 p;   // world position (m)
@@ -88,14 +88,12 @@ struct State {
     Quat q;   // body->world attitude
     Vec3 w;   // body angular rate (rad/s), expressed in body frame
 };
-
 struct Deriv {
     Vec3 dp;
     Vec3 dv;
     Quat dq;
     Vec3 dw;
 };
-
 struct Params {
     double mass{1.5};          // kg
     Vec3 inertia{0.02, 0.02, 0.04}; // diagonal inertia (kg*m^2) [Ix,Iy,Iz]
@@ -105,7 +103,6 @@ struct Params {
     double k1{0.15};
     double k2{0.02};
 };
-
 struct Input {
     Vec3 thrust_body;  // N (body frame)
     Vec3 moment_body;  // N*m (body frame)
