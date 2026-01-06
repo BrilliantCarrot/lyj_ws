@@ -8,3 +8,4 @@ obj/
 *.exe
 *.dll
 *.meta
+*.csv

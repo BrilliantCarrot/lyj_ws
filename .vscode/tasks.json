@@ -1,17 +1,20 @@
 {
+    
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: g++ build active file",
-            "command": "/usr/bin/g++",
+            "label": "C/C++: g++.exe build active file",
+            "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${file}",
-                "-std=c++20",
-                "-fmodules-ts",
+                "${workspaceFolder}\\drone\\px4\\src\\sixdof.cpp",
+                "${workspaceFolder}\\drone\\px4\\src\\controller.cpp",
+                "-std=c++23",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${fileDirname}\\${fileBasenameNoExtension}.exe",
+                
+
             ],
             "options": {
                 "cwd": "${fileDirname}"
