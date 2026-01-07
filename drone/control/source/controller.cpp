@@ -1,4 +1,3 @@
-// controller.cpp
 #include "controller.h"
 
 static double clamp(double v, double lo, double hi) {

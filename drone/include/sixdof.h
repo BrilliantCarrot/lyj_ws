@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+
 // =====================
 // x, y, z 3차원 벡터
 // =====================
@@ -103,3 +104,9 @@ struct Input { // 제어 입력
     Vec3 thrust_body;  // N (body 좌표계 기준 힘 추력 벡터)
     Vec3 moment_body;  // N*m (body 프레임, Roll Pitch Yaw 토크(N*m) 벡터)
 };
+
+// 상태 미분 계산 (Newton-Euler)
+Deriv derivatives(const State& s, const Input& u, const Params& p);
+
+// RK4 적분기 선언
+State rk4_step(const State& s, const Input& u, const Params& p, double dt);

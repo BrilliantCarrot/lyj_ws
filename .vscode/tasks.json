@@ -8,9 +8,11 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}\\drone\\px4\\src\\sixdof.cpp",
-                "${workspaceFolder}\\drone\\px4\\src\\controller.cpp",
+                "${workspaceFolder}\\drone\\dynamics\\source\\sixdof.cpp",
+                "${workspaceFolder}\\drone\\control\\source\\controller.cpp",
+                "${workspaceFolder}\\drone\\apps\\simulation\\main_sim.cpp",
                 "-std=c++23",
+                "-IC:\\Users\\leeyj\\master\\drone\\include",
                 "-o",
                 "${fileDirname}\\${fileBasenameNoExtension}.exe",
                 
