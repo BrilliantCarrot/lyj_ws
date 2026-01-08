@@ -22,9 +22,16 @@ int main(int argc, char** argv) {
     s.w = {0,0,0};       // rad/s
     const double dt = 0.002;  // 500 Hz
     const double T  = 10.0;
-    std::ofstream ofs("C:/Users/leeyj/master/drone/px4/traj.csv");
-    // ofs << "t,px,py,pz,vx,vy,vz,qw,qx,qy,qz,wx,wy,wz\n";
-    ofs << "t,px,py,pz,vx,vy,vz,qw,qx,qy,qz,wx,wy,wz,refx,refy,refz\n";
+    std::ofstream ofs("C:/Users/leeyj/master/drone/csv/traj.csv");
+    ofs << "t,"
+    << "px,py,pz,"
+    << "vx,vy,vz,"
+    // << "qw,qx,qy,qz,"
+    << "roll,pitch,yaw,"
+    << "wx,wy,wz,"
+    << "refx,refy,refz,"
+    << "roll_ref,pitch_ref,yaw_ref,"
+    << "thrust,Mx,My,Mz\n";
     ofs << std::fixed << std::setprecision(6);
     // Controller 설정, 루프 밖(초기화)
     ControllerGains gains; // 게인 설정(기본값)
@@ -33,59 +40,46 @@ int main(int argc, char** argv) {
     // ref.yaw_ref = 0.0;
     ref.p_ref = {0.0, 0.0, 0.0}; // 시작 목표는 0m
     ref.yaw_ref = 0.0;
-    // 루프 안(매 스텝마다)
+    // 반복문을 통한 목표 시나리오 생성
     for (int i = 0; i <= static_cast<int>(T/dt); ++i) {
         const double t = i * dt;
 
-        // 로그용
-        ofs << t << ","
-            << s.p.x << "," << s.p.y << "," << s.p.z << ","
-            << s.v.x << "," << s.v.y << "," << s.v.z << ","
-            << s.q.w << "," << s.q.x << "," << s.q.y << "," << s.q.z << ","
-            << s.w.x << "," << s.w.y << "," << s.w.z << ","
-            << ref.p_ref.x << "," << ref.p_ref.y << "," << ref.p_ref.z << "\n";
-
         // 스탭마다 실행
-        // const Input u = input_schedule(t, params);
-        // s = rk4_step(s, u, params, dt);
-        // 2초 정지, 그 후 1m 상승 목표(x,y는 유지)
-        if (t < 2.0) ref.p_ref.z = 0.0;
-        else         ref.p_ref.z = 1.0;
-        ref.p_ref.x = 0.0;
-        ref.p_ref.y = 0.0;
-        const Input u = controller_update(s, ref, params, gains);
+        if (t < 3.0) {
+            ref.p_ref.x = 0.0;
+            ref.p_ref.y = 0.0;
+            ref.p_ref.z = 1.0;
+        }
+        else {
+            ref.p_ref.x = 1.0;
+            ref.p_ref.y = 0.0;
+            ref.p_ref.z = 1.0;
+        }
+        ref.yaw_ref = 0.0;
+
+        // const Input u = controller_update(s, ref, params, gains);
+
+        // 3) 현재 Euler 계산 (로그용)
+        double roll=0.0, pitch=0.0, yaw=0.0;
+        quat_to_euler_zyx(s.q, roll, pitch, yaw);
+        // controller (Debug 포함)
+        const ControllerOutput out = controller_update_dbg(s, ref, params, gains);
+        const Input u = out.u;
+        // 로그 (헤더와 동일 열/순서)
+        ofs << t << ","
+        << s.p.x << "," << s.p.y << "," << s.p.z << ","
+        << s.v.x << "," << s.v.y << "," << s.v.z << ","
+        << out.dbg.roll << "," << out.dbg.pitch << "," << out.dbg.yaw << ","
+        << s.w.x << "," << s.w.y << "," << s.w.z << ","
+        << ref.p_ref.x << "," << ref.p_ref.y << "," << ref.p_ref.z << ","
+        << out.dbg.roll_ref << "," << out.dbg.pitch_ref << "," << out.dbg.yaw_ref << ","
+        << out.u.thrust_body.z << ","
+        << out.u.moment_body.x << "," << out.u.moment_body.y << "," << out.u.moment_body.z
+        << "\n";
+
         s = rk4_step(s, u, params, dt);
     }
-
     std::cout << "traj.csv 작성됨 \n";
     std::cout << "Final position: (" << s.p.x << ", " << s.p.y << ", " << s.p.z << ")\n";
     return 0;
 }
-
-// =====================
-// 입력 생성기(임시)
-// 시간 t에 따라 기체에 가해줄 추력, 모멘트 산출 입력 생성기, 제어기가 없는 상태에서 테스트용 조종 입력 시나리오
-// =====================
-// static Input input_schedule(double t, const Params& p) {
-//     Input u;
-//     // Hover-ish thrust: mass*g upward in body z axis (assuming body z-up).
-//     // If you prefer body z-down (aircraft convention), flip sign accordingly.
-//     const double hover = p.mass * p.g;
-//     // 데모 시나리오:
-//     // 시작~2s: 호버링, 자세 유지
-//     // 2~6s: 피치 토크 발생 -> 각속도 w 생성 -> 자세 q 변화 -> 전진 가속
-//     // 6~종료: 모멘트를 0으로, 관성에 의해 계속 전진
-//     u.thrust_body = {0.0, 0.0, hover};
-
-//     if (t > 2.0 && t < 6.0) {
-//         u.moment_body = {0.0, 0.03, 0.0}; // N*m about body y
-//     } else {
-//         u.moment_body = {0.0, 0.0, 0.0};
-//     }
-//     if (t > 6.0 && t < 8.0) {
-//         // u.moment_body.z = 0.02;
-//         u.moment_body = {0.0, -0.04, 0.0}; // 다시 호버링
-//     }
-
-//     return u;
-// }

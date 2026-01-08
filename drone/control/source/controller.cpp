@@ -27,7 +27,7 @@ static double wrap_pi(double a) {
 // 6-DOF 상태는 quaternion(s.q)로 자세를 가지고 있음.
 // 간단한 자세 제어 PD 구현엔 roll/pitch/yaw가 더 직관적, 따라서 quaternion을 ZYX 순서의 오일러로 변환.
 // ※ s.q가 “body→world”인지 “world→body”인지에 따라 부호/해석이 바뀔 수 있음.
-static void quat_to_euler_zyx(const Quat& q, double& roll, double& pitch, double& yaw) {
+void quat_to_euler_zyx(const Quat& q, double& roll, double& pitch, double& yaw) {
     // roll (x-axis rotation)
     const double sinr_cosp = 2.0 * (q.w*q.x + q.y*q.z);
     const double cosr_cosp = 1.0 - 2.0 * (q.x*q.x + q.y*q.y);
@@ -44,6 +44,87 @@ static void quat_to_euler_zyx(const Quat& q, double& roll, double& pitch, double
     yaw = std::atan2(siny_cosp, cosy_cosp);
 }
 
+// ===== Debug 포함 메인 컨트롤러(clamp로 안전장치 추가) =====
+ControllerOutput controller_update_dbg(const State& s, const Ref& ref, const Params& params, const ControllerGains& gains) {
+    ControllerOutput out;
+
+    // 1)
+    double roll=0.0, pitch=0.0, yaw=0.0;
+    quat_to_euler_zyx(s.q, roll, pitch, yaw);
+
+    // 2) Position -> Velocity (P)
+    const Vec3 e_p = ref.p_ref - s.p;
+    Vec3 v_cmd;
+    v_cmd.x = gains.kp_pos_xy * e_p.x;
+    v_cmd.y = gains.kp_pos_xy * e_p.y;
+    v_cmd.z = gains.kp_pos_z  * e_p.z;
+    // v_cmd.x = clamp(v_cmd.x, -gains.max_vxy_cmd, gains.max_vxy_cmd);
+    // v_cmd.y = clamp(v_cmd.y, -gains.max_vxy_cmd, gains.max_vxy_cmd);
+    // v_cmd.z = clamp(v_cmd.z, -gains.max_vz_cmd, gains.max_vz_cmd); // 오버슈트 감소용
+
+    // 3)
+    Vec3 a_cmd;
+    a_cmd.x = gains.kp_vel_xy * (v_cmd.x - s.v.x);
+    a_cmd.y = gains.kp_vel_xy * (v_cmd.y - s.v.y);
+    a_cmd.z = gains.kp_vel_z  * (v_cmd.z - s.v.z);
+    // a_cmd.x = clamp(a_cmd.x, -gains.max_axy_cmd, gains.max_axy_cmd);
+    // a_cmd.y = clamp(a_cmd.x, -gains.max_axy_cmd, gains.max_axy_cmd);
+    // a_cmd.z = clamp(a_cmd.z, -gains.max_az_cmd, gains.max_az_cmd); // 오버슈트 감소용
+
+    // 4)
+    const double cy = std::cos(yaw);
+    const double sy = std::sin(yaw);
+
+    const double ax_h =  cy*a_cmd.x + sy*a_cmd.y;
+    const double ay_h = -sy*a_cmd.x + cy*a_cmd.y;
+
+    double pitch_ref =  ax_h / params.g;
+    double roll_ref  = -ay_h / params.g;
+    const double yaw_ref = ref.yaw_ref;
+
+    const double max_tilt = gains.max_tilt_deg * M_PI / 180.0;
+    pitch_ref = clamp(pitch_ref, -max_tilt, max_tilt);
+    roll_ref  = clamp(roll_ref,  -max_tilt, max_tilt);
+
+    // 5)
+    const double e_roll  = roll_ref  - roll;
+    const double e_pitch = pitch_ref - pitch;
+    const double e_yaw   = wrap_pi(yaw_ref - yaw);
+
+    const double p_rate = s.w.x;
+    const double q_rate = s.w.y;
+    const double r_rate = s.w.z;
+
+    double Mx = gains.kp_att_rp  * e_roll  - gains.kd_att_rp  * p_rate;
+    double My = gains.kp_att_rp  * e_pitch - gains.kd_att_rp  * q_rate;
+    double Mz = gains.kp_att_yaw * e_yaw   - gains.kd_att_yaw * r_rate;
+    // 오버슈트 감소용
+    // Mx = clamp(Mx, -gains.moment_max_rp, gains.moment_max_rp);
+    // My = clamp(My, -gains.moment_max_rp, gains.moment_max_rp);
+    // Mz = clamp(Mz, -gains.moment_max_y,  gains.moment_max_y);
+
+    out.u.moment_body = {Mx, My, Mz};
+
+    // 6)
+    double T = params.mass * (params.g + a_cmd.z);
+
+    const double c_r = std::cos(roll);
+    const double c_p = std::cos(pitch);
+    const double denom = clamp(c_r * c_p, 0.2, 1.0);
+    T = T / denom;
+    // T = clamp(T, gains.thrust_min, gains.thrust_max); // 오버슈트 감소용
+
+    out.u.thrust_body = {0.0, 0.0, T};
+
+    // Debug 채우기 코드
+    out.dbg.roll = roll; out.dbg.pitch = pitch; out.dbg.yaw = yaw;
+    out.dbg.roll_ref = roll_ref; out.dbg.pitch_ref = pitch_ref; out.dbg.yaw_ref = yaw_ref;
+    out.dbg.v_cmd = v_cmd;
+    out.dbg.a_cmd = a_cmd;
+
+    return out;
+}
+// ===== 메인 컨트롤러 (디버그 내역 제외, 추후 디버그 끝나면 전체 수정해서 이용하도록 남김) =====
 Input controller_update(const State& s, const Ref& ref, const Params& params, const ControllerGains& gains) {
     Input u;
 
@@ -58,12 +139,12 @@ Input controller_update(const State& s, const Ref& ref, const Params& params, co
     // 목표 위치로 가기위한 속도 명령 생성.
     // =====================
     const Vec3 e_p = ref.p_ref - s.p;
-
+    // Vec3 v_cmd;
     const double vx_cmd = gains.kp_pos_xy * e_p.x;
     const double vy_cmd = gains.kp_pos_xy * e_p.y;
     // 수평과 수직 dynamics가 다르고, 튜닝도 다르므로 z축은 별도 게인 사용.
-    const double vz_cmd = gains.kp_pos_z  * e_p.z;
-
+    double vz_cmd = gains.kp_pos_z  * e_p.z;
+    vz_cmd = clamp(vz_cmd, -gains.max_vz_cmd, gains.max_vz_cmd); // 오버슈트 감소용
     // =====================
     // 3) Velocity -> Acceleration (P 제어, 중간 루프)
     // 원하는 속도를 만들기 위한 가속도 명령 생성.
@@ -73,7 +154,8 @@ Input controller_update(const State& s, const Ref& ref, const Params& params, co
     const double ax_cmd = gains.kp_vel_xy * (vx_cmd - s.v.x);
     const double ay_cmd = gains.kp_vel_xy * (vy_cmd - s.v.y);
 
-    const double az_cmd = gains.kp_vel_z  * (vz_cmd - s.v.z);
+    double az_cmd = gains.kp_vel_z  * (vz_cmd - s.v.z);
+    az_cmd = clamp(az_cmd, -gains.max_az_cmd, gains.max_az_cmd); // 오버슈트 감소용
 
     // =====================
     // 4) 가속도 명령을 기울기로 변환(tilt mapping, 쿼드콥터 드론의 기동을 고려, a_cmd_xy -> roll_ref, pitch_ref)
@@ -135,22 +217,14 @@ Input controller_update(const State& s, const Ref& ref, const Params& params, co
 
     const double c_r = std::cos(roll);
     const double c_p = std::cos(pitch);
-    const double denom = clamp(c_r * c_p, 0.2, 1.0); // 분모가 너무 작아져 값이 무한대가 되는 현상 방지한 안정장치
+    double denom = clamp(c_r * c_p, 0.2, 1.0); // 분모가 너무 작아져 값이 무한대가 되는 현상 방지한 안정장치
     T = T / denom;
+    // thrust saturation
+    T = clamp(T, gains.thrust_min, gains.thrust_max); // 오버슈트 감소용
     // body frame 기준 추력 벡터, z축 방향으로만 추력 작용, 쿼터니언을 통해 world로 변환됨.
     u.thrust_body = {0.0, 0.0, T};
 
-    // // 1) z 위치 오차 -> z 속도 명령 (P)
-    // const double e_z = ref.p_ref.z - s.p.z;
-    // const double vz_cmd = gains.kp_pos_z * e_z;
-    // // 2) z 속도 오차 -> z 가속도 명령 (P)
-    // const double e_vz = vz_cmd - s.v.z;
-    // const double az_cmd = gains.kp_vel_z * e_vz;
-    // // 3) thrust 계산 (현재는 "기울기 보상" 없이 단순히 T = m*(g + az_cmd))
-    // // 좌표계가 z-up 이면 g는 아래 방향이므로 thrust는 +z로 들어가야 보통 상승합니다.
-    // const double T = params.mass * (params.g + az_cmd);
-    // u.thrust_body = {0.0, 0.0, T};
-    // u.moment_body = {0.0, 0.0, 0.0}; // 아직 자세 제어 안 되있음
-
     return u;
+
+    return controller_update_dbg(s, ref, params, gains).u;
 }
