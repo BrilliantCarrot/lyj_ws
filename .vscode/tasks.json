@@ -4,17 +4,19 @@
         {
             "type": "cppbuild",
             "label": "C/C++: g++.exe build active file",
-            "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
+            // "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}\\drone\\dynamics\\source\\sixdof.cpp",
-                "${workspaceFolder}\\drone\\control\\source\\controller.cpp",
-                "${workspaceFolder}\\drone\\apps\\simulation\\main_sim.cpp",
+                "${workspaceFolder}/uav_gnc_ws/core/dynamics/source/sixdof.cpp",
+                "${workspaceFolder}/uav_gnc_ws/core/control/source/controller.cpp",
+                "${workspaceFolder}/uav_gnc_ws/core/apps/simulation/main_sim.cpp",
                 "-std=c++23",
-                "-IC:\\Users\\leeyj\\master\\drone\\include",
+                // "-IC:\\Users\\leeyj\\master\\uav_gnc_ws\\include",
+                "-IC:/home/lyj/master/uav_gnc_ws/include",
                 "-o",
-                "${fileDirname}\\${fileBasenameNoExtension}.exe",
+                // "${fileDirname}\\${fileBasenameNoExtension}.exe",
                 
 
             ],

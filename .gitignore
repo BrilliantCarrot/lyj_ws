@@ -1,6 +1,25 @@
+build/
+install/
+log/
+# ROS2 runtime
+*.bag
+*.bag.active
+# CMake build artifacts
+CMakeFiles/
+.cmake/
+CMakeCache.txt
+cmake_install.cmake
+# C++ build artifacts
+*.o
+*.d
+*.a
+*.so
+Makefile
 bin/
 obj/
 .vs/
+.vscode/
+.idea/
 *.user
 *.suo
 *.cache
