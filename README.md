@@ -16,6 +16,6 @@
 엔지니어로서 전문성을 기르기 위해 학습한 **TIL(Today I Learned)** 기록입니다. 
 * **주요 내용:** C/C++ 프로그래밍, 알고리즘, Kalman Filter 등
 
-master에 두 폴더 내용을 병합하였습니다.
-병합 후 master에서 작업을 진행하고 있습니다.
+<small>master에 두 폴더 내용을 병합하였습니다.</small>
+<small>병합 후 master에서 작업을 진행하고 있습니다.</small>
 ---
