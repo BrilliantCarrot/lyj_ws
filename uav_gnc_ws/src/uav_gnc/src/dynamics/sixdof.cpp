@@ -1,5 +1,4 @@
-
-#include "sixdof.h"
+#include "uav_gnc/sixdof.h"
 
 // =====================
 // derivatives
