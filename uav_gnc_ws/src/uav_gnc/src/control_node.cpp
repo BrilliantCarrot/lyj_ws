@@ -17,7 +17,7 @@ public:
   {
     dt_ = this->declare_parameter<double>("dt", 0.01);
 
-    // sim_node와 params/gains를 맞추는 게 중요함 (일단 기본값 제공)
+    // simulation_node와 params/gains를 맞추는 게 중요함
     params_.mass = this->declare_parameter<double>("mass", 2.0);
     params_.inertia.x = this->declare_parameter<double>("Ix", 0.02);
     params_.inertia.y = this->declare_parameter<double>("Iy", 0.02);
@@ -27,7 +27,7 @@ public:
     params_.k1 = this->declare_parameter<double>("k1", 0.15);
     params_.k2 = this->declare_parameter<double>("k2", 0.02);
 
-    // gains도 파라미터로 빼두면 실무감 좋아짐 (일단 default 그대로)
+    // gains 값 확인해서 yaml 파라미터로 빼기 (일단 default 그대로)
     gains_.kp_pos_xy = this->declare_parameter<double>("kp_pos_xy", gains_.kp_pos_xy);
     gains_.kp_pos_z  = this->declare_parameter<double>("kp_pos_z",  gains_.kp_pos_z);
     gains_.kp_vel_xy = this->declare_parameter<double>("kp_vel_xy", gains_.kp_vel_xy);

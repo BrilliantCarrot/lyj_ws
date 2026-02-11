@@ -1,0 +1,11 @@
+simulation_node:
+  ros__parameters:
+    dt: 0.01
+    mass: 2.0
+    Ix: 0.02
+    Iy: 0.02
+    Iz: 0.04
+    g: 9.80665
+    use_drag: true
+    k1: 0.15
+    k2: 0.02

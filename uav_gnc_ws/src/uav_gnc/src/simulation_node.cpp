@@ -16,7 +16,7 @@ class SimNode : public rclcpp::Node
 public:
   SimNode() : Node("sim_node")
   {
-    // ===== parameters (4주차는 기본값으로도 충분, 나중에 yaml로 뺄 것) =====
+    // ===== parameters (yaml로 업데이트 계속 필요) =====
     dt_ = this->declare_parameter<double>("dt", 0.01);
 
     params_.mass = this->declare_parameter<double>("mass", 2.0);
@@ -29,7 +29,7 @@ public:
     params_.k1 = this->declare_parameter<double>("k1", 0.15);
     params_.k2 = this->declare_parameter<double>("k2", 0.02);
 
-    // 초기 상태 (원하면 파라미터로 뺄 수 있음)
+    // 초기 상태 (나중에 파라미터로 빼기 가능)
     state_.p = {0.0, 0.0, 0.0};
     state_.v = {0.0, 0.0, 0.0};
     state_.q = {1.0, 0.0, 0.0, 0.0};   // body->world
