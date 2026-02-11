@@ -1,9 +1,13 @@
+bags/
+**/bags/
 build/
 install/
 log/
 # ROS2 runtime
 *.bag
 *.bag.active
+*.db3
+*.mcap
 # CMake build artifacts
 CMakeFiles/
 .cmake/
