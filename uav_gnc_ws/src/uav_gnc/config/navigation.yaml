@@ -1,2 +1,4 @@
-nagivation_node:
+navigation_node:
   ros__parameters:
+    in_topic: "/sim/odom"
+    out_topic: "/nav/odom"

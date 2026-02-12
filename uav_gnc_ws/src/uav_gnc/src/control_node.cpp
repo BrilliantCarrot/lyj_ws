@@ -10,6 +10,11 @@
 
 using namespace std::chrono_literals;
 
+// control_node의 동작(정석)
+// Sub 1: /sim/odom 구독, (nav_msgs/Odometry) → 현재 상태 저장 (position, velocity, quaternion, angular rate)
+// Sub 2: /guidance/setpoint 구독, (geometry_msgs/PoseStamped) → 목표 상태 저장 (목표 position, 목표 yaw)
+// Timer(예: 100Hz, 고정 주기): 상태/목표가 둘 다 유효하면 controller에 현재 상태 + 목표 상태 넣기 → controller 계산 → /control/wrench publish
+// Pub: /control/wrench (geometry_msgs/WrenchStamped)
 class ControlNode : public rclcpp::Node
 {
 public:
@@ -56,8 +61,8 @@ public:
     // nav_node가 없을 때엔 터미널에서 ros2 run uav_gnc control_node --ros-args -p odom_topic:=/sim/odom 입력
     // 즉, 실행할 때 파라미터가 필요
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-      odom_topic_, 10,
-      std::bind(&ControlNode::odomCallback, this, std::placeholders::_1));
+      odom_topic_, 10, std::bind(&ControlNode::odomCallback, this, std::placeholders::_1));
+    // odom_topic_에서 오도메트리 데이터를 수신하여 odomCallback 함수로 처리하는 구독자 생성
 
     sp_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
       "/guidance/setpoint", 10,
@@ -122,9 +127,10 @@ private:
       ref = ref_;
     }
 
-    // 네 controller는 함수형
+    // 제어 계산 결과를 ROS 메시지로 바꿔서 시뮬레이터로 보냄
+    // u: 힘/모멘트, s: 현재상태, ref: 목표상태, params_: 기체물성치, gains_: 제어이득
     const Input u = controller_update(s, ref, params_, gains_);
-
+    // 힘+토크의 Wrench
     geometry_msgs::msg::WrenchStamped wrench;
     wrench.header.stamp = this->now();
     wrench.header.frame_id = "base_link"; // sim_node는 body frame 입력이라고 가정 중

@@ -1,8 +1,10 @@
 #include <mutex>
-
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 
+// /sim/odom(ground truth)을 구독
+// 그대로(혹은 약간의 노이즈를 섞어서) /nav/odom으로 다시 publish
+// 그리고 control_node는 이제 /sim/odom 대신 /nav/odom만 보게 바꿈
 class NavigationNode : public rclcpp::Node
 {
 public:

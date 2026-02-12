@@ -5,6 +5,7 @@
 
 using namespace std::chrono_literals;
 
+// 지금 시각 t에서 목표 위치(그리고 필요하면 목표 yaw)를 만들어서 /guidance/setpoint로 계속 publish하는 노드
 class GuidanceNode : public rclcpp::Node
 {
 public:
@@ -30,9 +31,10 @@ public:
 
     start_time_ = this->now();
 
-    const auto period = std::chrono::duration<double>(1.0 / rate_hz_);
+    const auto period = std::chrono::duration<double>(1.0 / rate_hz_); // 주기 계산
     timer_ = this->create_wall_timer(period, std::bind(&GuidanceNode::onTimer, this));
-
+    // 일정 시간(period)마다 특정 함수(onTimer)를 자동으로 실행하도록 하는 타이머를 설정
+    // std::bind()에서 타이머 시간이 다 되었을 때 실행할 콜백 함수를 바인딩
     RCLCPP_INFO(this->get_logger(),
                 "guidance_node started (rate=%.1f Hz, r=%.2f, omega=%.3f, z=%.2f)",
                 rate_hz_, r_, omega_, z_);
