@@ -2,8 +2,10 @@
 #include <mutex>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/wrench_stamped.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
 // ROS2/ament에서는 “패키지의 include 디렉토리”가 include 경로로 잡히기 때문에
 // 헤더는 include/를 빼고 패키지 경로 기준으로만 씀.
 #include <uav_gnc/sixdof.h>
@@ -45,6 +47,11 @@ public:
     // ===== pub/sub =====
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/sim/odom", 10);
     // "/sim/odom" 토픽으로 Odometry 메시지를 발행하는 큐 사이즈 10의 퍼블리셔 생성
+    imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/sim/imu", 10);
+    // "/sim/imu" 토픽으로 Imu 메시지를 발행하는 큐 사이즈 10의 퍼블리셔 생성
+    gps_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/sim/gps/pos", 10);
+    // "/sim/gps/pos" 토픽으로  메시지를 발행하는 큐 사이즈 10의 퍼블리셔 생성
+    
     wrench_sub_ = this->create_subscription<geometry_msgs::msg::WrenchStamped>(
       "/control/wrench", 10,
       std::bind(&SimNode::wrenchCallback, this, std::placeholders::_1)
@@ -89,6 +96,16 @@ private:
       u_copy = input_; // 복사본을 만들어서 뒷부분 적분에 사용
     }
 
+    // ===== IMU 생성용: 현재 상태에서의 가속도/각속도 계산 =====
+    // d.dv: world frame 선형가속도 (중력 포함)
+    const Deriv d = derivatives(state_, u_copy, params_);
+    const Vec3 gravity{0.0, 0.0, -params_.g};
+
+    // specific force = a_world - g_world (world) 를 body로 회전, f = a - g 이 후 body frame으로 변환함.
+    // "specific force"는 가속도에서 중력 가속도를 뺀 값으로, IMU의 가속도계가 측정하는 실제 가속도입.
+    const Vec3 specific_force_world = d.dv - gravity;
+    const Vec3 accel_body = state_.q.rotateWorldToBody(specific_force_world);
+
     state_ = rk4_step(state_, u_copy, params_, dt_);
 
     // Odometry publish
@@ -117,6 +134,41 @@ private:
     odom.twist.twist.angular.z = state_.w.z;
 
     odom_pub_->publish(odom); // 퍼블리셔로 메시지 발행하여 ROS 네트워크에 전파
+
+    // ===== IMU publish (100 Hz = every step) =====
+    sensor_msgs::msg::Imu imu;
+    imu.header.stamp = odom.header.stamp;
+    imu.header.frame_id = "base_link";
+
+    // orientation은 일단 GT를 넣어도 되고(나중에 EKF랑 비교 가능), 안 써도 됨
+    imu.orientation.w = state_.q.w;
+    imu.orientation.x = state_.q.x;
+    imu.orientation.y = state_.q.y;
+    imu.orientation.z = state_.q.z;
+
+    // gyro (body frame)
+    imu.angular_velocity.x = state_.w.x;
+    imu.angular_velocity.y = state_.w.y;
+    imu.angular_velocity.z = state_.w.z;
+
+    // accel (body frame) : specific force
+    imu.linear_acceleration.x = accel_body.x;
+    imu.linear_acceleration.y = accel_body.y;
+    imu.linear_acceleration.z = accel_body.z;
+
+    imu_pub_->publish(imu);
+
+    // ===== GPS publish (10 Hz = every 10 steps) =====
+    step_count_++;
+    if (step_count_ % gps_div_ == 0) {
+      geometry_msgs::msg::PointStamped gps;
+      gps.header.stamp = odom.header.stamp;
+      gps.header.frame_id = "world";
+      gps.point.x = state_.p.x;
+      gps.point.y = state_.p.y;
+      gps.point.z = state_.p.z;
+      gps_pub_->publish(gps);
+    }
   }
 
 private:
@@ -129,8 +181,13 @@ private:
   std::mutex mtx_;
 
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr gps_pub_;
   rclcpp::Subscription<geometry_msgs::msg::WrenchStamped>::SharedPtr wrench_sub_;
   rclcpp::TimerBase::SharedPtr timer_;
+
+  int gps_div_{10}; // GPS는 10Hz로 발행하기 위해 타이머마다 카운트
+  int step_count_{0}; // 타이머 콜백이 몇 번 호출되었는지 카운트
 };
 
 int main(int argc, char** argv){
