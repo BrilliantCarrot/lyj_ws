@@ -16,6 +16,12 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+include_directories(
+  include
+  ${EIGEN3_INCLUDE_DIRS} 
+)
 
 # 워크스페이스 루트 경로(패키지가 uav_gnc_ws(워크스페이스 최상단)/src/uav_gnc 일 때)
 # set(WS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
@@ -34,17 +40,21 @@ set(CORE_SOURCES
 add_library(uav_gnc_core ${CORE_SOURCES})
 # target_include_directories(uav_gnc_core PUBLIC
 #   ${WS_INCLUDE_DIR})
+add_library(ekf_lib src/ekf.cpp)
 
 # core가 참조할 헤더 경로(패키지 include)
 target_include_directories(uav_gnc_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
+target_include_directories(ekf_lib PUBLIC include)
+
 # core 라이브러리가 ROS2 메시지 타입을 헤더에서 쓴다면(ex: geometry_msgs를 헤더에서 include)
 # 라이브러리에도 의존성을 걸어주는 게 안전
 ament_target_dependencies(uav_gnc_core
   rclcpp geometry_msgs nav_msgs sensor_msgs)
 
+ament_target_dependencies(ekf_lib rclcpp Eigen3)
 
 # core 라이브러리에도 컴파일 옵션 추가 가능(TODO)
 # target_compile_options(uav_gnc_core PRIVATE -O2)
@@ -59,7 +69,7 @@ add_executable(navigation_node src/navigation_node.cpp)
 target_link_libraries(simulation_node uav_gnc_core)
 target_link_libraries(control_node uav_gnc_core)
 target_link_libraries(guidance_node uav_gnc_core)
-target_link_libraries(navigation_node uav_gnc_core)
+target_link_libraries(navigation_node uav_gnc_core ekf_lib)
 
 # 노드 타겟에 ROS2 의존성 연결
 ament_target_dependencies(simulation_node
@@ -69,7 +79,7 @@ ament_target_dependencies(control_node
 ament_target_dependencies(guidance_node
   rclcpp geometry_msgs nav_msgs sensor_msgs)
 ament_target_dependencies(navigation_node
-  rclcpp geometry_msgs nav_msgs sensor_msgs)
+  rclcpp geometry_msgs nav_msgs sensor_msgs Eigen3)
 
 # 설치(install) 규칙: ros2 run/launch가 되도록
 install(TARGETS

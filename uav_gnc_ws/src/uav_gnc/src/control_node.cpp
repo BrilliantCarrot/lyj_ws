@@ -123,9 +123,14 @@ private:
     {
       std::lock_guard<std::mutex> lock(mtx_);
       if (!has_state_ || !has_ref_) return;
+      // [추가] 현재 상태가 NaN이면 제어 계산 중단!
+      if (std::isnan(state_.p.x) || std::isnan(state_.v.x) || std::isnan(state_.q.w)) {
+      return;}
       s = state_;
       ref = ref_;
     }
+
+
 
     // 제어 계산 결과를 ROS 메시지로 바꿔서 시뮬레이터로 보냄
     // u: 힘/모멘트, s: 현재상태, ref: 목표상태, params_: 기체물성치, gains_: 제어이득

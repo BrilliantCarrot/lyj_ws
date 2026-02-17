@@ -1,5 +1,6 @@
 #include <chrono>
 #include <mutex>
+#include <random>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <sensor_msgs/msg/imu.hpp>
@@ -34,6 +35,26 @@ public:
     params_.k1 = this->declare_parameter<double>("k1", 0.15);
     params_.k2 = this->declare_parameter<double>("k2", 0.02);
 
+    // 파라미터 읽어오는 부분 바로 아래에 작성
+    double n_acc = this->declare_parameter<double>("noise_acc", 0.1);
+    double n_gyr = this->declare_parameter<double>("noise_gyr", 0.01);
+    double n_gps = this->declare_parameter<double>("noise_gps", 0.5);
+
+    // [중요] 혹시 0.0이 들어오면 강제로 기본값 설정 (NaN 방지)
+    if (n_acc <= 0) n_acc = 0.1;
+    if (n_gyr <= 0) n_gyr = 0.01;
+    if (n_gps <= 0) n_gps = 0.5;
+
+    // 분포 객체 다시 생성 (확실하게!)
+    dist_acc_ = std::normal_distribution<double>(0.0, n_acc);
+    dist_gyr_ = std::normal_distribution<double>(0.0, n_gyr);
+    dist_gps_ = std::normal_distribution<double>(0.0, n_gps);
+    
+    // 시드값 초기화 (이거 없으면 랜덤 안 될 수도 있음)
+    // std::random_device rd; // 헤더 필요: #include <random>
+    // generator_.seed(rd()); 
+    // 그냥 간단하게 시간으로 시드 주거나, 기본 시드 사용해도 됨.
+
     // 초기 상태 (나중에 파라미터로 빼기 가능)
     state_.p = {0.0, 0.0, 0.0};
     state_.v = {0.0, 0.0, 0.0};
@@ -67,13 +88,27 @@ public:
       std::chrono::duration<double>(dt_),
       std::bind(&SimNode::onTimer, this)
     );
+
     // “dt_ 초마다 onTimer() 함수를 실행하는 타이머를 만듦
     RCLCPP_INFO(this->get_logger(), "simulation_node started (dt=%.4f)", dt_);
+    // SimNode() 생성자 맨 마지막 부분에 추가
+    RCLCPP_WARN(this->get_logger(), "=== SIM DEBUG ===");
+    RCLCPP_WARN(this->get_logger(), "Mass: %f", params_.mass);
+    RCLCPP_WARN(this->get_logger(), "Inertia X: %f", params_.inertia.x);
+    RCLCPP_WARN(this->get_logger(), "Noise Acc Param: %f", dist_acc_.stddev()); // 이거 확인 중요!
   }
 
 private:
   void wrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
   {
+    // [추가] 들어온 힘 값이 NaN(숫자가 아님)이면 무시하고 리턴! (방어 코드)
+    if (std::isnan(msg->wrench.force.x) || std::isnan(msg->wrench.force.y) || std::isnan(msg->wrench.force.z) ||
+        std::isnan(msg->wrench.torque.x) || std::isnan(msg->wrench.torque.y) || std::isnan(msg->wrench.torque.z)) {
+        // 로그 한번 찍어주면 좋음 (선택사항)
+        // RCLCPP_WARN(this->get_logger(), "Received NaN Wrench! Ignoring...");
+        return; 
+    }
+
     // control_node가 /control/wrench에 publish한 힘/토크를
     // sim_node가 받아서 sixdof에 넣을 **Input 구조체(input_)**에 저장하는 역할
     // SharedPtr는 ROS2에서 메시지를 효율적으로 전달하기 위한 스마트 포인터로, 메시지 데이터를 복사하지 않고 참조를 공유할 수 있게 해준다. 
@@ -146,27 +181,37 @@ private:
     imu.orientation.y = state_.q.y;
     imu.orientation.z = state_.q.z;
 
-    // gyro (body frame)
+    // Gyro
     imu.angular_velocity.x = state_.w.x;
     imu.angular_velocity.y = state_.w.y;
     imu.angular_velocity.z = state_.w.z;
-
-    // accel (body frame) : specific force
+    // Accel
     imu.linear_acceleration.x = accel_body.x;
     imu.linear_acceleration.y = accel_body.y;
     imu.linear_acceleration.z = accel_body.z;
+    // // Gyro + Noise
+    // imu.angular_velocity.x = state_.w.x + dist_gyr_(generator_);
+    // imu.angular_velocity.y = state_.w.y + dist_gyr_(generator_);
+    // imu.angular_velocity.z = state_.w.z + dist_gyr_(generator_);
+    // // Accel + Noise
+    // imu.linear_acceleration.x = accel_body.x + dist_acc_(generator_);
+    // imu.linear_acceleration.y = accel_body.y + dist_acc_(generator_);
+    // imu.linear_acceleration.z = accel_body.z + dist_acc_(generator_);
 
     imu_pub_->publish(imu);
 
-    // ===== GPS publish (10 Hz = every 10 steps) =====
+    // ===== GPS publish (Noise 추가) =====
     step_count_++;
     if (step_count_ % gps_div_ == 0) {
       geometry_msgs::msg::PointStamped gps;
       gps.header.stamp = odom.header.stamp;
       gps.header.frame_id = "world";
-      gps.point.x = state_.p.x;
-      gps.point.y = state_.p.y;
-      gps.point.z = state_.p.z;
+      
+      // GPS Position + Noise
+      gps.point.x = state_.p.x + dist_gps_(generator_);
+      gps.point.y = state_.p.y + dist_gps_(generator_);
+      gps.point.z = state_.p.z + dist_gps_(generator_); // 수직 오차도 동일하다고 가정
+      
       gps_pub_->publish(gps);
     }
   }
@@ -188,6 +233,11 @@ private:
 
   int gps_div_{10}; // GPS는 10Hz로 발행하기 위해 타이머마다 카운트
   int step_count_{0}; // 타이머 콜백이 몇 번 호출되었는지 카운트
+
+  std::default_random_engine generator_;
+  std::normal_distribution<double> dist_acc_;
+  std::normal_distribution<double> dist_gyr_;
+  std::normal_distribution<double> dist_gps_;
 };
 
 int main(int argc, char** argv){
