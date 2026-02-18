@@ -57,7 +57,7 @@ private:
     Eigen::Vector3d acc(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
     Eigen::Vector3d gyro(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
 
-    // [추가] 제어기로 넘겨주기 위해 Gyro 데이터 저장 (Bias 보정은 EKF에서 꺼내와도 되지만, 일단 Raw값도 OK)
+    // [추가] 제어기로 넘겨주기 위해 Gyro 각속도 데이터 저장 (Bias 보정은 EKF에서 꺼내와도 되지만, 일단 Raw값도 OK)
     // 더 정교하게 하려면: current_gyro_ = gyro - ekf_.getGyroBias();
     current_gyro_ = gyro; 
     // 3. EKF 예측 (Prediction)
@@ -87,7 +87,7 @@ private:
     Eigen::Quaterniond q = ekf_.getAttitude();
 
     // ==========================================
-    // [추가된 안전장치] NaN 체크 (가장 중요!)
+    // [추가된 안전장치] NaN 체크
     // ==========================================
     // 위치(p), 속도(v), 자세(q) 중 하나라도 숫자가 아니면(NaN) 절대 보내지 않음
     bool is_p_nan = std::isnan(p.x()) || std::isnan(p.y()) || std::isnan(p.z());
@@ -95,10 +95,10 @@ private:
     bool is_q_nan = std::isnan(q.w()) || std::isnan(q.x()) || std::isnan(q.y()) || std::isnan(q.z());
 
     if (is_p_nan || is_v_nan || is_q_nan) {
-        // (선택) 로그를 너무 많이 찍으면 렉 걸리니까, 1초에 한 번만 경고 출력
+        // 로그를 너무 많이 찍으면 렉이 걸리니 1초에 한 번만 경고 출력
         RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, 
                              "EKF Output is NaN! Skipping publish to protect controller.");
-        return; // 여기서 함수 강제 종료! (쓰레기 값 전송 차단)
+        return; // 여기서 함수 강제 종료 (쓰레기 값 전송 차단)
     }
 
     // ==========================================
@@ -136,7 +136,8 @@ private:
     odom.twist.twist.linear.z = v.z();
 
     // Angular Velocity는 EKF 상태에 없다면 IMU 값을 그대로 쓰거나 비워둠 (여기선 생략)
-    // [추가] 제어기의 D-gain을 위해 각속도(Angular Velocity) 필수!!
+    // 각속도 채워넣기 (NaN 방지 위해 EKF에서 꺼내오는 대신, IMU 콜백에서 저장해둔 current_gyro_ 사용)
+    // [추가] 제어기의 D-gain을 위해 각속도(Angular Velocity) 필수
     odom.twist.twist.angular.x = current_gyro_.x();
     odom.twist.twist.angular.y = current_gyro_.y();
     odom.twist.twist.angular.z = current_gyro_.z();
@@ -148,7 +149,7 @@ private:
   EKF ekf_;
   rclcpp::Time last_time_{0};
 
-  // [추가] 각속도 전달을 위한 변수
+  // [nan 방지용 추가] 각속도 전달을 위한 변수
   Eigen::Vector3d current_gyro_{0.0, 0.0, 0.0}; 
 
   std::string imu_topic_;

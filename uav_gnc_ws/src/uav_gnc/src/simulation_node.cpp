@@ -35,17 +35,17 @@ public:
     params_.k1 = this->declare_parameter<double>("k1", 0.15);
     params_.k2 = this->declare_parameter<double>("k2", 0.02);
 
-    // 파라미터 읽어오는 부분 바로 아래에 작성
-    double n_acc = this->declare_parameter<double>("noise_acc", 0.1);
-    double n_gyr = this->declare_parameter<double>("noise_gyr", 0.01);
-    double n_gps = this->declare_parameter<double>("noise_gps", 0.5);
+    // 노이즈 표준편차 파라미터 (기본값 설정)
+    double n_acc = this->declare_parameter<double>("noise_acc", 0.1); // 가속도계 노이즈 표준편차 (m/s^2)
+    double n_gyr = this->declare_parameter<double>("noise_gyr", 0.01); // 자이로 노이즈 표준편차 (rad/s)
+    double n_gps = this->declare_parameter<double>("noise_gps", 0.5); // GPS 노이즈 표준편차 (m) - 위치 측정 오차, EKF 튜닝에 중요
 
     // [중요] 혹시 0.0이 들어오면 강제로 기본값 설정 (NaN 방지)
     if (n_acc <= 0) n_acc = 0.1;
     if (n_gyr <= 0) n_gyr = 0.01;
     if (n_gps <= 0) n_gps = 0.5;
 
-    // 분포 객체 다시 생성 (확실하게!)
+    // 분포 객체 생성 (평균 0, 표준편차 n)
     dist_acc_ = std::normal_distribution<double>(0.0, n_acc);
     dist_gyr_ = std::normal_distribution<double>(0.0, n_gyr);
     dist_gps_ = std::normal_distribution<double>(0.0, n_gps);
@@ -101,10 +101,10 @@ public:
 private:
   void wrenchCallback(const geometry_msgs::msg::WrenchStamped::SharedPtr msg)
   {
-    // [추가] 들어온 힘 값이 NaN(숫자가 아님)이면 무시하고 리턴! (방어 코드)
+    // [추가] 들어온 힘 값이 NaN(숫자가 아님)이면 무시하고 리턴 (방어 코드)
     if (std::isnan(msg->wrench.force.x) || std::isnan(msg->wrench.force.y) || std::isnan(msg->wrench.force.z) ||
         std::isnan(msg->wrench.torque.x) || std::isnan(msg->wrench.torque.y) || std::isnan(msg->wrench.torque.z)) {
-        // 로그 한번 찍어주면 좋음 (선택사항)
+        // 디버그용 로그 한번 찍어주기
         // RCLCPP_WARN(this->get_logger(), "Received NaN Wrench! Ignoring...");
         return; 
     }
@@ -175,33 +175,33 @@ private:
     imu.header.stamp = odom.header.stamp;
     imu.header.frame_id = "base_link";
 
-    // orientation은 일단 GT를 넣어도 되고(나중에 EKF랑 비교 가능), 안 써도 됨
+    // Orientation은 일단 GT를 넣어도 되고(나중에 EKF랑 비교 가능), 안 써도 됨
+    // Orientation은 쿼터니언 그대로 (보통 AHRS가 처리한다고 가정하나, 여기도 노이즈 넣을 수 있음, 일단 그대로)
     imu.orientation.w = state_.q.w;
     imu.orientation.x = state_.q.x;
     imu.orientation.y = state_.q.y;
     imu.orientation.z = state_.q.z;
 
-    // Gyro
-    imu.angular_velocity.x = state_.w.x;
-    imu.angular_velocity.y = state_.w.y;
-    imu.angular_velocity.z = state_.w.z;
-    // Accel
-    imu.linear_acceleration.x = accel_body.x;
-    imu.linear_acceleration.y = accel_body.y;
-    imu.linear_acceleration.z = accel_body.z;
-    // // Gyro + Noise
-    // imu.angular_velocity.x = state_.w.x + dist_gyr_(generator_);
-    // imu.angular_velocity.y = state_.w.y + dist_gyr_(generator_);
-    // imu.angular_velocity.z = state_.w.z + dist_gyr_(generator_);
-    // // Accel + Noise
-    // imu.linear_acceleration.x = accel_body.x + dist_acc_(generator_);
-    // imu.linear_acceleration.y = accel_body.y + dist_acc_(generator_);
-    // imu.linear_acceleration.z = accel_body.z + dist_acc_(generator_);
+    // // Gyro
+    // imu.angular_velocity.x = state_.w.x;
+    // imu.angular_velocity.y = state_.w.y;
+    // imu.angular_velocity.z = state_.w.z;
+    // // Accel
+    // imu.linear_acceleration.x = accel_body.x;
+    // imu.linear_acceleration.y = accel_body.y;
+    // imu.linear_acceleration.z = accel_body.z;
+    // Gyro + Noise
+    imu.angular_velocity.x = state_.w.x + dist_gyr_(generator_);
+    imu.angular_velocity.y = state_.w.y + dist_gyr_(generator_);
+    imu.angular_velocity.z = state_.w.z + dist_gyr_(generator_);
+    // Accel + Noise
+    imu.linear_acceleration.x = accel_body.x + dist_acc_(generator_);
+    imu.linear_acceleration.y = accel_body.y + dist_acc_(generator_);
+    imu.linear_acceleration.z = accel_body.z + dist_acc_(generator_);
 
     imu_pub_->publish(imu);
 
-    // ===== GPS publish (Noise 추가) =====
-    step_count_++;
+    step_count_++; // ===== GPS publish (Noise 추가) =====
     if (step_count_ % gps_div_ == 0) {
       geometry_msgs::msg::PointStamped gps;
       gps.header.stamp = odom.header.stamp;
@@ -233,7 +233,7 @@ private:
 
   int gps_div_{10}; // GPS는 10Hz로 발행하기 위해 타이머마다 카운트
   int step_count_{0}; // 타이머 콜백이 몇 번 호출되었는지 카운트
-
+  // <random> 라이브러리를 이용하여 정규 분포(가우시안 분포)를 따르는 난수를 생성
   std::default_random_engine generator_;
   std::normal_distribution<double> dist_acc_;
   std::normal_distribution<double> dist_gyr_;

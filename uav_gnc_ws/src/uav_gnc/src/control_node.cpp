@@ -123,7 +123,7 @@ private:
     {
       std::lock_guard<std::mutex> lock(mtx_);
       if (!has_state_ || !has_ref_) return;
-      // [추가] 현재 상태가 NaN이면 제어 계산 중단!
+      // [추가] 현재 상태가 NaN이면 제어 계산 중단
       if (std::isnan(state_.p.x) || std::isnan(state_.v.x) || std::isnan(state_.q.w)) {
       return;}
       s = state_;
