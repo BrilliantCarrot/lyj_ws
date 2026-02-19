@@ -92,10 +92,10 @@ public:
     // “dt_ 초마다 onTimer() 함수를 실행하는 타이머를 만듦
     RCLCPP_INFO(this->get_logger(), "simulation_node started (dt=%.4f)", dt_);
     // SimNode() 생성자 맨 마지막 부분에 추가
-    RCLCPP_WARN(this->get_logger(), "=== SIM DEBUG ===");
-    RCLCPP_WARN(this->get_logger(), "Mass: %f", params_.mass);
-    RCLCPP_WARN(this->get_logger(), "Inertia X: %f", params_.inertia.x);
-    RCLCPP_WARN(this->get_logger(), "Noise Acc Param: %f", dist_acc_.stddev()); // 이거 확인 중요!
+    // RCLCPP_WARN(this->get_logger(), "=== SIM DEBUG ===");
+    // RCLCPP_WARN(this->get_logger(), "Mass: %f", params_.mass);
+    // RCLCPP_WARN(this->get_logger(), "Inertia X: %f", params_.inertia.x);
+    // RCLCPP_WARN(this->get_logger(), "Noise Acc Param: %f", dist_acc_.stddev()); // 이거 확인 중요!
   }
 
 private:

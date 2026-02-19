@@ -17,6 +17,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(
   include
@@ -77,7 +79,7 @@ ament_target_dependencies(simulation_node
 ament_target_dependencies(control_node
   rclcpp geometry_msgs nav_msgs sensor_msgs)
 ament_target_dependencies(guidance_node
-  rclcpp geometry_msgs nav_msgs sensor_msgs)
+  rclcpp geometry_msgs nav_msgs sensor_msgs tf2 tf2_geometry_msgs)
 ament_target_dependencies(navigation_node
   rclcpp geometry_msgs nav_msgs sensor_msgs Eigen3)
 

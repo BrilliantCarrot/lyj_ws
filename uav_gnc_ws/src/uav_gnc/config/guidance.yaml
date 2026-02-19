@@ -1,11 +1,17 @@
 guidance_node:
   ros__parameters:
+    use_nav_odom: true          # true면 /nav/odom, false면 /sim/odom
+    setpoint_topic: "/guidance/setpoint"
+    nav_odom_topic: "/nav/odom"
+    sim_odom_topic: "/sim/odom"
+
     rate_hz: 20.0
+    z_ref: 1.0
 
-    center_x: 0.0
-    center_y: 0.0
-    z: 1.0
-    radius: 3.0
+    waypoints_x: [0.0, 5.0, 5.0, 0.0, 0.0]
+    waypoints_y: [0.0, 0.0, 5.0, 5.0, 0.0]
 
-    omega: 0.2
-    theta0: 0.0
+    accept_radius: 0.5          # 이 거리 이내면 다음 waypoint로
+    lookahead_dist: 1.5         # setpoint를 앞쪽으로 당겨 찍는 거리
+
+    hold_last: true             # 마지막 waypoint 도달 후 그 자리 유지
