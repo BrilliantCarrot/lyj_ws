@@ -38,9 +38,38 @@ def generate_launch_description():
         output='screen',
         parameters=[control_yaml]
     )
+    path_viz_sim = Node(
+        package='uav_gnc',
+        executable='path_viz_node',
+        name='path_viz_sim',
+        output='screen',
+        parameters=[{
+            'input_odom_topic': '/sim/odom',
+            'output_path_topic': '/sim/path',
+            'output_marker_topic': '/sim/marker',
+            'publish_rate_hz': 10.0,
+            'history_size': 5000
+        }]
+    )
+
+    path_viz_nav = Node(
+        package='uav_gnc',
+        executable='path_viz_node',
+        name='path_viz_nav',
+        output='screen',
+        parameters=[{
+            'input_odom_topic': '/nav/odom',
+            'output_path_topic': '/nav/path',
+            'output_marker_topic': '/nav/marker',
+            'publish_rate_hz': 10.0,
+            'history_size': 5000
+        }]
+    )
     return LaunchDescription([
         simulation,
         guidance,
         navigation,
         control,
+        path_viz_sim,
+        path_viz_nav
     ])

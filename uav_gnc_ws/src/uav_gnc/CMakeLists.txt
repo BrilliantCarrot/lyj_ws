@@ -19,6 +19,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 include_directories(
   include
@@ -66,6 +67,7 @@ add_executable(simulation_node src/simulation_node.cpp)
 add_executable(control_node src/control_node.cpp)
 add_executable(guidance_node src/guidance_node.cpp)
 add_executable(navigation_node src/navigation_node.cpp)
+add_executable(path_viz_node src/visualization/path_viz_node.cpp)
 
 # 노드들이 core 라이브러리 링크
 target_link_libraries(simulation_node uav_gnc_core)
@@ -82,6 +84,8 @@ ament_target_dependencies(guidance_node
   rclcpp geometry_msgs nav_msgs sensor_msgs tf2 tf2_geometry_msgs)
 ament_target_dependencies(navigation_node
   rclcpp geometry_msgs nav_msgs sensor_msgs Eigen3)
+ament_target_dependencies(path_viz_node
+  rclcpp geometry_msgs nav_msgs sensor_msgs visualization_msgs)
 
 # 설치(install) 규칙: ros2 run/launch가 되도록
 install(TARGETS
@@ -90,6 +94,7 @@ install(TARGETS
   control_node
   guidance_node
   navigation_node
+  path_viz_node
   DESTINATION lib/${PROJECT_NAME})
 
 # 설치: 헤더
