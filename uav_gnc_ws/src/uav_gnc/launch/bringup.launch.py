@@ -1,4 +1,7 @@
 from launch import LaunchDescription
+from launch.actions import RegisterEventHandler, EmitEvent
+from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -51,7 +54,6 @@ def generate_launch_description():
             'history_size': 5000
         }]
     )
-
     path_viz_nav = Node(
         package='uav_gnc',
         executable='path_viz_node',
@@ -91,7 +93,16 @@ def generate_launch_description():
             'waypoints_x': [0.0, 5.0, 5.0, 0.0, 0.0],
             'waypoints_y': [0.0, 0.0, 5.0, 5.0, 0.0],
             'accept_radius': 0.5,
+            'auto_exit_on_complete': True,
+            'settle_time_sec': 1.0,   # 완주 후 1초만 더 기록하고 종료 (원하면 0으로)
         }]
+    )
+    # ✅ eval_nav 프로세스가 종료되면, 전체 bringup을 Shutdown
+    shutdown_on_eval_done = RegisterEventHandler(
+        OnProcessExit(
+            target_action=eval_nav,
+            on_exit=[EmitEvent(event=Shutdown(reason='Mission complete (eval_nav exited)'))]
+        )
     )
     return LaunchDescription([
         simulation,
@@ -101,5 +112,6 @@ def generate_launch_description():
         path_viz_sim,
         path_viz_nav,
         eval_sim,
-        eval_nav
+        eval_nav,
+        shutdown_on_eval_done
     ])

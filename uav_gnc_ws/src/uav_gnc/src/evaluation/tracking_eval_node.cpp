@@ -20,8 +20,10 @@ public:
 
     wp_x_ = declare_parameter<std::vector<double>>("waypoints_x", std::vector<double>{0.0});
     wp_y_ = declare_parameter<std::vector<double>>("waypoints_y", std::vector<double>{0.0});
-
     accept_radius_ = declare_parameter<double>("accept_radius", 0.5);
+
+    auto_exit_on_complete_ = declare_parameter<bool>("auto_exit_on_complete", false);
+    settle_time_sec_       = declare_parameter<double>("settle_time_sec", 0.0);
 
     if (wp_x_.size() != wp_y_.size() || wp_x_.size() < 2) {
       RCLCPP_FATAL(get_logger(), "Waypoints invalid: need same size and at least 2 points.");
@@ -34,7 +36,8 @@ public:
       RCLCPP_FATAL(get_logger(), "Failed to open csv_path: %s", csv_path_.c_str());
       throw std::runtime_error("CSV open failed");
     }
-    csv_ << "t_sec,x,y,seg_idx,wp_x,wp_y,dist_to_wp,cross_track_err\n";
+    csv_ << "t_sec,x,y,seg_idx,wp_x,wp_y,dist_to_wp,cross_track_err,completed,time_to_complete_sec\n";
+
     csv_.flush();
 
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
@@ -106,6 +109,16 @@ private:
         seg_idx_++;
       } else {
         reached_last_ = true;
+
+        if (!completed_) {
+          completed_ = true;
+          complete_stamp_ = now();
+          time_to_complete_sec_ = (complete_stamp_ - start_time_).seconds();
+
+          RCLCPP_INFO(get_logger(),
+            "MISSION COMPLETE! time_to_complete_sec=%.3f (accept_radius=%.3f)",
+            time_to_complete_sec_, accept_radius_);
+        }
       }
     }
   }
@@ -138,10 +151,14 @@ private:
     max_abs_ = std::max(max_abs_, std::abs(cte));
 
     // csv
+    const int completed_int = completed_ ? 1 : 0;
+    const double ttc = completed_ ? time_to_complete_sec_ : -1.0;
+
     csv_ << std::fixed << std::setprecision(6)
-         << t_sec << "," << x_ << "," << y_ << ","
-         << seg_i << "," << wx << "," << wy << ","
-         << dist_wp << "," << cte << "\n";
+        << t_sec << "," << x_ << "," << y_ << ","
+        << seg_i << "," << wx << "," << wy << ","
+        << dist_wp << "," << cte << ","
+        << completed_int << "," << ttc << "\n";
 
     // flush occasionally (not every tick)
     if ((count_ % 50) == 0) csv_.flush();
@@ -153,6 +170,17 @@ private:
       RCLCPP_INFO(get_logger(),
         "cte stats: mean_abs=%.3f, rmse=%.3f, max_abs=%.3f (N=%zu)%s",
         mean_abs, rmse, max_abs_, count_, reached_last_ ? " [reached_last]" : "");
+    }
+
+    if (auto_exit_on_complete_ && completed_) {
+      // 완주 후 settle_time_sec 동안은 계속 기록하고 그 다음 종료
+      const double after_complete = (now() - complete_stamp_).seconds();
+      if (after_complete >= settle_time_sec_) {
+        csv_.flush();
+        RCLCPP_INFO(get_logger(), "Auto-exit eval node after completion (settle=%.2f sec).", settle_time_sec_);
+        rclcpp::shutdown(); // 이 프로세스(평가 노드)만 종료
+        return;
+      }
     }
   }
 
@@ -201,6 +229,14 @@ private:
 
   // csv
   std::ofstream csv_;
+
+  bool completed_{false};
+  double time_to_complete_sec_{-1.0};
+
+  bool auto_exit_on_complete_{false};
+  double settle_time_sec_{0.0};   // 완주 후 몇 초 더 기록하고 종료할지
+  rclcpp::Time complete_stamp_;
+
 };
 
 int main(int argc, char** argv)
