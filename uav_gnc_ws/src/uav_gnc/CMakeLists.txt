@@ -68,6 +68,7 @@ add_executable(control_node src/control_node.cpp)
 add_executable(guidance_node src/guidance_node.cpp)
 add_executable(navigation_node src/navigation_node.cpp)
 add_executable(path_viz_node src/visualization/path_viz_node.cpp)
+add_executable(tracking_eval_node src/evaluation/tracking_eval_node.cpp)
 
 # 노드들이 core 라이브러리 링크
 target_link_libraries(simulation_node uav_gnc_core)
@@ -86,6 +87,8 @@ ament_target_dependencies(navigation_node
   rclcpp geometry_msgs nav_msgs sensor_msgs Eigen3)
 ament_target_dependencies(path_viz_node
   rclcpp geometry_msgs nav_msgs sensor_msgs visualization_msgs)
+ament_target_dependencies(tracking_eval_node
+  rclcpp nav_msgs)
 
 # 설치(install) 규칙: ros2 run/launch가 되도록
 install(TARGETS
@@ -95,6 +98,7 @@ install(TARGETS
   guidance_node
   navigation_node
   path_viz_node
+  tracking_eval_node
   DESTINATION lib/${PROJECT_NAME})
 
 # 설치: 헤더

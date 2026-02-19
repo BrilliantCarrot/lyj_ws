@@ -65,11 +65,41 @@ def generate_launch_description():
             'history_size': 5000
         }]
     )
+    eval_sim = Node(
+    package='uav_gnc',
+    executable='tracking_eval_node',
+    name='eval_sim',
+    output='screen',
+    parameters=[{
+        'input_odom_topic': '/sim/odom',
+        'csv_path': 'sim_tracking_eval.csv',
+        'rate_hz': 20.0,
+        'waypoints_x': [0.0, 5.0, 5.0, 0.0, 0.0],
+        'waypoints_y': [0.0, 0.0, 5.0, 5.0, 0.0],
+        'accept_radius': 0.5,
+        }]
+    )
+    eval_nav = Node(
+        package='uav_gnc',
+        executable='tracking_eval_node',
+        name='eval_nav',
+        output='screen',
+        parameters=[{
+            'input_odom_topic': '/nav/odom',
+            'csv_path': 'nav_tracking_eval.csv',
+            'rate_hz': 20.0,
+            'waypoints_x': [0.0, 5.0, 5.0, 0.0, 0.0],
+            'waypoints_y': [0.0, 0.0, 5.0, 5.0, 0.0],
+            'accept_radius': 0.5,
+        }]
+    )
     return LaunchDescription([
         simulation,
         guidance,
         navigation,
         control,
         path_viz_sim,
-        path_viz_nav
+        path_viz_nav,
+        eval_sim,
+        eval_nav
     ])
