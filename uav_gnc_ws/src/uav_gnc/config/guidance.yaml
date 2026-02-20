@@ -15,3 +15,10 @@ guidance_node:
     lookahead_dist: 1.5         # setpoint를 앞쪽으로 당겨 찍는 거리
 
     hold_last: true             # 마지막 waypoint 도달 후 그 자리 유지
+    # ===== [7주차 추가] Trajectory (Quintic) 모드 =====
+    use_trajectory: true        # true: 궤적 샘플링 setpoint / false: 기존 waypoint look-ahead
+    traj_max_speed: 1.5         # [m/s] 구간 시간 자동할당에 사용(거리/속도)
+    traj_seg_dt_min: 0.8        # [s] 구간 시간 최소값(너무 짧아지는 것 방지)
+    traj_loop: false            # true면 궤적을 끝나면 다시 반복
+    traj_lookahead_t: 0.5       # [s] 속도가 0에 가까울 때 yaw 계산 보완용
+    traj_start_delay: 0.0       # [s] 시작을 잠깐 늦추고 싶을 때
