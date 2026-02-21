@@ -1,6 +1,6 @@
 guidance_node:
   ros__parameters:
-    use_nav_odom: true          # true면 /nav/odom, false면 /sim/odom
+    use_nav_odom: true          # true면 /nav/odom, false면 /sim/odom, guidance 알고리즘 테스트할때는 false
     setpoint_topic: "/guidance/setpoint"
     nav_odom_topic: "/nav/odom"
     sim_odom_topic: "/sim/odom"

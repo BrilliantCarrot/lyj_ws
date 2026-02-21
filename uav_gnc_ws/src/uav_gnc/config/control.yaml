@@ -11,4 +11,4 @@ control_node:
     k1: 0.15
     k2: 0.02
 
-    odom_topic: "/nav/odom"
+    odom_topic: "/nav/odom" # 노이즈 없는 상태를 보려면(guidacne only) /sim/odom으로 
