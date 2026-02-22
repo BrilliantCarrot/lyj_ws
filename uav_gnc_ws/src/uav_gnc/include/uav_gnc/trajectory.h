@@ -2,244 +2,95 @@
 
 #include <Eigen/Dense>
 #include <vector>
-#include <iostream>
-#include <cmath>
 
-using Eigen::Matrix3d;
-using Eigen::Vector3d;
-
-// ==========================================
-// 5차 다항식 (Minimum Jerk) 궤적 생성기
-// ==========================================
+// ======================================================================
+// 1. MinJerkTrajectory (최소 가가속도 궤적 생성기)
+// 목적: 점과 점 사이를 이동할 때 가가속도(Jerk)의 변화를 최소화하여 부드럽게 이동.
+// 수학적 특징: 5차 다항식 (Quintic Polynomial) 사용.
+// ======================================================================
 class MinJerkTrajectory {
 public:
-    MinJerkTrajectory() {}
-
-    void generate(double p0, double v0, double a0, 
-                  double pf, double vf, double af, double T) {
-        T_ = T;
-        c_[0] = p0;
-        c_[1] = v0;
-        c_[2] = 0.5 * a0;
-
-        Matrix3d A;
-        A << pow(T, 3),   pow(T, 4),    pow(T, 5),
-             3*pow(T, 2), 4*pow(T, 3),  5*pow(T, 4),
-             6*T,         12*pow(T, 2), 20*pow(T, 3);
-
-        Vector3d B;
-        B << pf - p0 - v0*T - 0.5*a0*pow(T, 2),
-             vf - v0 - a0*T,
-             af - a0;
-
-        Vector3d x = A.colPivHouseholderQr().solve(B);
-        c_[3] = x(0);
-        c_[4] = x(1);
-        c_[5] = x(2);
-    }
-
-    double getPosition(double t) const {
-        if (t < 0.0) t = 0.0;
-        if (t > T_) t = T_;
-        return c_[0] + c_[1]*t + c_[2]*pow(t, 2) + c_[3]*pow(t, 3) + c_[4]*pow(t, 4) + c_[5]*pow(t, 5);
-    }
-
-    double getVelocity(double t) const {
-        if (t < 0.0) t = 0.0;
-        if (t > T_) t = T_;
-        return c_[1] + 2*c_[2]*t + 3*c_[3]*pow(t, 2) + 4*c_[4]*pow(t, 3) + 5*c_[5]*pow(t, 4);
-    }
+    MinJerkTrajectory();
+    
+    // 궤적의 계수를 계산(생성)하는 함수
+    // p0, v0, a0: 출발점의 위치, 속도, 가속도
+    // pf, vf, af: 도착점의 위치, 속도, 가속도
+    // T: 이 구간을 이동하는 데 걸리는 총 시간
+    void generate(double p0, double v0, double a0, double pf, double vf, double af, double T);
+    
+    // 특정 시간 t (0 <= t <= T)일 때, 드론이 있어야 할 '위치'를 반환
+    double getPosition(double t) const;
+    
+    // 특정 시간 t일 때, 드론이 가져야 할 '속도'를 반환 (Feedforward 제어에 유용함)
+    double getVelocity(double t) const;
 
 private:
-    double c_[6]{0.0};
-    double T_{0.0};
+    double c_[6]{0.0}; // 5차 다항식의 계수 6개 (c0, c1, c2, c3, c4, c5)를 저장하는 배열
+    double T_{0.0};    // 이 궤적이 끝나는 총 시간 (t가 T_를 넘어가면 궤적이 종료됨)
 };
 
-// ==========================================
-// 7차 다항식 (Minimum Snap) 궤적 생성기
-// ==========================================
+
+// ======================================================================
+// 2. MinSnapTrajectory (최소 스냅 궤적 생성기)
+// 목적: 쿼드콥터의 모터 토크 변화율(Snap)을 최소화하여 가장 안정적인 비행을 유도.
+// 수학적 특징: 7차 다항식 (Septic Polynomial) 사용.
+// ======================================================================
 class MinSnapTrajectory {
 public:
-    MinSnapTrajectory() {}
-
-    void generate(double p0, double v0, double a0, double j0,
-                  double pf, double vf, double af, double jf, double T) {
-        T_ = T;
-
-        c_[0] = p0;
-        c_[1] = v0;
-        c_[2] = 0.5 * a0;
-        c_[3] = (1.0 / 6.0) * j0;
-
-        Eigen::Matrix4d A;
-        A << pow(T, 4),    pow(T, 5),     pow(T, 6),      pow(T, 7),
-             4*pow(T, 3),  5*pow(T, 4),   6*pow(T, 5),    7*pow(T, 6),
-             12*pow(T, 2), 20*pow(T, 3),  30*pow(T, 4),   42*pow(T, 5),
-             24*T,         60*pow(T, 2),  120*pow(T, 3),  210*pow(T, 4);
-
-        Eigen::Vector4d B;
-        B << pf - (c_[0] + c_[1]*T + c_[2]*pow(T, 2) + c_[3]*pow(T, 3)),
-             vf - (c_[1] + 2*c_[2]*T + 3*c_[3]*pow(T, 2)),
-             af - (2*c_[2] + 6*c_[3]*T),
-             jf - (6*c_[3]);
-
-        Eigen::Vector4d x = A.colPivHouseholderQr().solve(B);
-        c_[4] = x(0);
-        c_[5] = x(1);
-        c_[6] = x(2);
-        c_[7] = x(3);
-    }
-
-    double getPosition(double t) const {
-        if (t < 0.0) t = 0.0;
-        if (t > T_) t = T_;
-        return c_[0] + c_[1]*t + c_[2]*pow(t, 2) + c_[3]*pow(t, 3) + 
-               c_[4]*pow(t, 4) + c_[5]*pow(t, 5) + c_[6]*pow(t, 6) + c_[7]*pow(t, 7);
-    }
-
-    double getVelocity(double t) const {
-        if (t < 0.0) t = 0.0;
-        if (t > T_) t = T_;
-        return c_[1] + 2*c_[2]*t + 3*c_[3]*pow(t, 2) + 4*c_[4]*pow(t, 3) + 
-               5*c_[5]*pow(t, 4) + 6*c_[6]*pow(t, 5) + 7*c_[7]*pow(t, 6);
-    }
+    MinSnapTrajectory();
+    
+    // 궤적 계수 계산 (Jerk 조건이 추가됨!)
+    // j0, jf: 출발점과 도착점의 가가속도(Jerk). 보통 0으로 설정하여 부드러운 출발/정지를 유도함.
+    void generate(double p0, double v0, double a0, double j0, 
+                  double pf, double vf, double af, double jf, double T);
+    
+    // 특정 시간 t에서의 위치 반환
+    double getPosition(double t) const;
+    
+    // 특정 시간 t에서의 속도 반환
+    double getVelocity(double t) const;
 
 private:
-    double c_[8]{0.0};
-    double T_{0.0};
+    double c_[8]{0.0}; // 7차 다항식의 계수 8개 (c0 ~ c7)를 저장하는 배열
+    double T_{0.0};    // 총 소요 시간
 };
 
-// ==========================================
-// 다중 구간 7차 다항식 (Multi-segment Minimum Snap) 생성기
-// ==========================================
+
+// ======================================================================
+// 3. MultiMinSnapTrajectory (다중 구간 최소 스냅 궤적 생성기)
+// 목적: 여러 개의 Waypoint를 한 번에 주면, 중간 경유지에서 멈추지 않고 
+//       속도와 가속도를 매끄럽게 유지하며 전체 경로의 Snap을 최소화함.
+// 수학적 특징: 구간이 N개라면, 7차 다항식 N개를 하나로 이어붙임 (총 8*N개의 계수 연산).
+// ======================================================================
 class MultiMinSnapTrajectory {
 public:
-    MultiMinSnapTrajectory() {}
-
-    // 여러 개의 Waypoint와 각 구간별 소요 시간(times)을 받아서 전체 궤적 계수를 한 번에 계산
-    void generate(const std::vector<double>& waypoints, const std::vector<double>& times) {
-        int N = times.size(); // 구간의 수
-        if (N == 0 || waypoints.size() != static_cast<size_t>(N + 1)) return;
-
-        int num_vars = 8 * N; // 각 구간별로 8개의 계수 (7차 다항식)
-        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(num_vars, num_vars);
-        Eigen::VectorXd B = Eigen::VectorXd::Zero(num_vars);
-
-        int row = 0;
-
-        // 1. 출발점 조건 (t = 0일 때 위치는 wp[0], 속도=가속도=Jerk=0)
-        A(row, 0) = 1.0; B(row++) = waypoints[0];
-        A(row, 1) = 1.0; B(row++) = 0.0;
-        A(row, 2) = 2.0; B(row++) = 0.0;
-        A(row, 3) = 6.0; B(row++) = 0.0;
-
-        // 2. 중간 경유지 조건 (위치 지정 및 미분값 연속성 보장)
-        for (int i = 0; i < N - 1; ++i) {
-            double T = times[i];
-            int col_i = i * 8;          // 현재 구간의 계수 시작 열
-            int col_next = (i + 1) * 8; // 다음 구간의 계수 시작 열
-
-            // i번째 구간의 끝점 위치 = 다음 Waypoint
-            A(row, col_i+0)=1.0; A(row, col_i+1)=T; A(row, col_i+2)=pow(T,2); A(row, col_i+3)=pow(T,3);
-            A(row, col_i+4)=pow(T,4); A(row, col_i+5)=pow(T,5); A(row, col_i+6)=pow(T,6); A(row, col_i+7)=pow(T,7);
-            B(row++) = waypoints[i+1];
-
-            // i+1번째 구간의 시작점 위치 = 다음 Waypoint
-            A(row, col_next+0) = 1.0;
-            B(row++) = waypoints[i+1];
-
-            // 연속성 보장: 속도, 가속도, Jerk, Snap, Snap의 1/2차 미분 (총 6개)
-            // (1) 속도 연속 (v_i(T) - v_{i+1}(0) = 0)
-            A(row, col_i+1)=1.0; A(row, col_i+2)=2*T; A(row, col_i+3)=3*pow(T,2); A(row, col_i+4)=4*pow(T,3);
-            A(row, col_i+5)=5*pow(T,4); A(row, col_i+6)=6*pow(T,5); A(row, col_i+7)=7*pow(T,6);
-            A(row, col_next+1) = -1.0; B(row++) = 0.0;
-
-            // (2) 가속도 연속 (a_i(T) - a_{i+1}(0) = 0)
-            A(row, col_i+2)=2.0; A(row, col_i+3)=6*T; A(row, col_i+4)=12*pow(T,2); A(row, col_i+5)=20*pow(T,3);
-            A(row, col_i+6)=30*pow(T,4); A(row, col_i+7)=42*pow(T,5);
-            A(row, col_next+2) = -2.0; B(row++) = 0.0;
-
-            // (3) Jerk 연속
-            A(row, col_i+3)=6.0; A(row, col_i+4)=24*T; A(row, col_i+5)=60*pow(T,2); A(row, col_i+6)=120*pow(T,3); A(row, col_i+7)=210*pow(T,4);
-            A(row, col_next+3) = -6.0; B(row++) = 0.0;
-
-            // (4) Snap 연속
-            A(row, col_i+4)=24.0; A(row, col_i+5)=120*T; A(row, col_i+6)=360*pow(T,2); A(row, col_i+7)=840*pow(T,3);
-            A(row, col_next+4) = -24.0; B(row++) = 0.0;
-
-            // (5) Snap 1차 미분 연속 (Crackle)
-            A(row, col_i+5)=120.0; A(row, col_i+6)=720*T; A(row, col_i+7)=2520*pow(T,2);
-            A(row, col_next+5) = -120.0; B(row++) = 0.0;
-
-            // (6) Snap 2차 미분 연속 (Pop)
-            A(row, col_i+6)=720.0; A(row, col_i+7)=5040*T;
-            A(row, col_next+6) = -720.0; B(row++) = 0.0;
-        }
-
-        // 3. 도착점 조건 (t = T_end일 때 위치는 wp[N], 속도=가속도=Jerk=0)
-        double T_end = times[N - 1];
-        int col_last = (N - 1) * 8;
-
-        A(row, col_last+0)=1.0; A(row, col_last+1)=T_end; A(row, col_last+2)=pow(T_end,2); A(row, col_last+3)=pow(T_end,3);
-        A(row, col_last+4)=pow(T_end,4); A(row, col_last+5)=pow(T_end,5); A(row, col_last+6)=pow(T_end,6); A(row, col_last+7)=pow(T_end,7);
-        B(row++) = waypoints[N];
-
-        A(row, col_last+1)=1.0; A(row, col_last+2)=2*T_end; A(row, col_last+3)=3*pow(T_end,2); A(row, col_last+4)=4*pow(T_end,3);
-        A(row, col_last+5)=5*pow(T_end,4); A(row, col_last+6)=6*pow(T_end,5); A(row, col_last+7)=7*pow(T_end,6);
-        B(row++) = 0.0;
-
-        A(row, col_last+2)=2.0; A(row, col_last+3)=6*T_end; A(row, col_last+4)=12*pow(T_end,2); A(row, col_last+5)=20*pow(T_end,3);
-        A(row, col_last+6)=30*pow(T_end,4); A(row, col_last+7)=42*pow(T_end,5);
-        B(row++) = 0.0;
-
-        A(row, col_last+3)=6.0; A(row, col_last+4)=24*T_end; A(row, col_last+5)=60*pow(T_end,2); A(row, col_last+6)=120*pow(T_end,3); A(row, col_last+7)=210*pow(T_end,4);
-        B(row++) = 0.0;
-
-        // 거대한 행렬 풀기 (Eigen의 강력함)
-        coeffs_ = A.colPivHouseholderQr().solve(B);
-        times_ = times;
-    }
-
-    double getPosition(double t) const {
-        if (times_.empty()) return 0.0;
-        int idx = getSegmentIndex(t);
-        double t_local = t - getStartTime(idx);
-        int c = idx * 8;
-        return coeffs_(c) + coeffs_(c+1)*t_local + coeffs_(c+2)*pow(t_local,2) + coeffs_(c+3)*pow(t_local,3) +
-               coeffs_(c+4)*pow(t_local,4) + coeffs_(c+5)*pow(t_local,5) + coeffs_(c+6)*pow(t_local,6) + coeffs_(c+7)*pow(t_local,7);
-    }
-
-    double getVelocity(double t) const {
-        if (times_.empty()) return 0.0;
-        int idx = getSegmentIndex(t);
-        double t_local = t - getStartTime(idx);
-        int c = idx * 8;
-        return coeffs_(c+1) + 2*coeffs_(c+2)*t_local + 3*coeffs_(c+3)*pow(t_local,2) + 4*coeffs_(c+4)*pow(t_local,3) +
-               5*coeffs_(c+5)*pow(t_local,4) + 6*coeffs_(c+6)*pow(t_local,5) + 7*coeffs_(c+7)*pow(t_local,6);
-    }
-
-    double getTotalTime() const {
-        double t = 0;
-        for (double dt : times_) t += dt;
-        return t;
-    }
+    MultiMinSnapTrajectory();
+    
+    // 전체 궤적 생성
+    // waypoints: 지나가야 할 모든 점들의 리스트 (예: x좌표들)
+    // times: 각 점과 점 사이(구간)를 이동하는 데 할당된 시간들의 리스트
+    void generate(const std::vector<double>& waypoints, const std::vector<double>& times);
+    
+    // 전체 비행 시작 후 시간 t가 흘렀을 때의 위치 반환
+    double getPosition(double t) const;
+    
+    // 전체 비행 시작 후 시간 t가 흘렀을 때의 속도 반환
+    double getVelocity(double t) const;
+    
+    // 전체 웨이포인트를 도는 데 걸리는 총 합산 시간 반환
+    double getTotalTime() const;
 
 private:
-    int getSegmentIndex(double t) const {
-        double accumulated_t = 0.0;
-        for (size_t i = 0; i < times_.size(); ++i) {
-            accumulated_t += times_[i];
-            if (t <= accumulated_t) return i;
-        }
-        return times_.size() - 1;
-    }
+    // 시간 t가 현재 몇 번째 구간(Segment)을 지나고 있는지 찾아내는 헬퍼 함수
+    // 예: 1구간이 2초, 2구간이 3초 걸리는데 t=4초라면, 현재는 2번째 구간임!
+    int getSegmentIndex(double t) const;
+    
+    // 특정 구간(idx)이 시작되는 누적 시간을 반환
+    double getStartTime(int idx) const;
 
-    double getStartTime(int idx) const {
-        double start_t = 0.0;
-        for (int i = 0; i < idx; ++i) start_t += times_[i];
-        return start_t;
-    }
-
-    Eigen::VectorXd coeffs_;
-    std::vector<double> times_;
+    // 구간별로 계수가 8개씩 있으므로, 배열 대신 길이가 유동적인 Eigen 벡터를 사용해 계수를 몽땅 저장
+    Eigen::VectorXd coeffs_; 
+    
+    // 각 구간별 소요 시간을 기억해두는 리스트
+    std::vector<double> times_; 
 };

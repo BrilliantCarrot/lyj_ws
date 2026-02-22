@@ -37,7 +37,8 @@ include_directories(
 # core sources 들
 set(CORE_SOURCES
   src/dynamics/sixdof.cpp
-  src/control/controller.cpp)
+  src/control/controller.cpp
+  src/trajectory.cpp)
 
 # core 라이브러리 타겟 생성
 add_library(uav_gnc_core ${CORE_SOURCES})
