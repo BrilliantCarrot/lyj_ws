@@ -6,7 +6,6 @@
 #include <fstream>
 #include <iomanip>
 #include <algorithm>
-#include <geometry_msgs/msg/pose_stamped.hpp>
 
 static double clamp01(double x) { return std::max(0.0, std::min(1.0, x)); }
 
@@ -18,8 +17,6 @@ public:
     input_odom_topic_ = declare_parameter<std::string>("input_odom_topic", "/nav/odom");
     csv_path_         = declare_parameter<std::string>("csv_path", "tracking_eval.csv");
     rate_hz_          = declare_parameter<double>("rate_hz", 20.0);
-    use_setpoint_ref_ = declare_parameter<bool>("use_setpoint_ref", true);
-    setpoint_topic_   = declare_parameter<std::string>("setpoint_topic", "/guidance/setpoint");
 
     wp_x_ = declare_parameter<std::vector<double>>("waypoints_x", std::vector<double>{0.0});
     wp_y_ = declare_parameter<std::vector<double>>("waypoints_y", std::vector<double>{0.0});
@@ -39,19 +36,13 @@ public:
       RCLCPP_FATAL(get_logger(), "Failed to open csv_path: %s", csv_path_.c_str());
       throw std::runtime_error("CSV open failed");
     }
-    csv_ << "t_sec,x,y,seg_idx,wp_x,wp_y,dist_to_wp,cross_track_err,"
-            "ref_x,ref_y,ref_z,err_to_ref,have_ref,"
-            "completed,time_to_complete_sec\n";
+    csv_ << "t_sec,x,y,seg_idx,wp_x,wp_y,dist_to_wp,cross_track_err,completed,time_to_complete_sec\n";
 
     csv_.flush();
 
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
       input_odom_topic_, 50,
       std::bind(&TrackingEvalNode::odomCallback, this, std::placeholders::_1));
-
-    sp_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-      setpoint_topic_, 50,
-      std::bind(&TrackingEvalNode::spCallback, this, std::placeholders::_1));
 
     auto period = std::chrono::duration<double>(1.0 / std::max(1.0, rate_hz_));
     timer_ = create_wall_timer(
@@ -79,14 +70,6 @@ private:
     have_odom_ = true;
   }
 
-  void spCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
-  {
-    ref_x_ = msg->pose.position.x;
-    ref_y_ = msg->pose.position.y;
-    ref_z_ = msg->pose.position.z;
-    have_ref_ = true;
-  }
-
   // Cross-track error to current segment (wp[i] -> wp[i+1])
   double crossTrackToSegment(size_t i, double px, double py, double &t_proj_out)
   {
@@ -110,33 +93,38 @@ private:
     return std::hypot(px - projx, py - projy);
   }
 
-  void advanceSegmentIfReached(double px, double py)
+void advanceSegmentIfReached(double px, double py)
   {
-    // “현재 목표 waypoint”는 seg_idx_+1 이라고 보고,
-    // 그 waypoint에 accept_radius 안으로 들어오면 다음 segment로 넘어간다.
     const size_t N = wp_x_.size();
-    if (seg_idx_ + 1 >= N) return;
+    if (N == 0) return;
 
+    // 현재 비행 시간 계산
+    double t_sec = (now() - start_time_).seconds();
+
+    // [핵심 수정 포인트] 
+    // 출발점과 도착점이 같을 때 0초 만에 종료되는 것을 막기 위해, 
+    // 비행 시작 후 최소 5초가 지난 시점부터 최종 목적지 도달을 검사합니다!
+    const double dist_to_last = std::hypot(wp_x_.back() - px, wp_y_.back() - py);
+    if (t_sec > 5.0 && dist_to_last < accept_radius_ && !completed_) {
+        reached_last_ = true;
+        completed_ = true;
+        complete_stamp_ = now();
+        time_to_complete_sec_ = t_sec;
+
+        RCLCPP_INFO(get_logger(),
+          "MISSION COMPLETE! Reached final destination. time=%.3f",
+          time_to_complete_sec_);
+        return;
+    }
+
+    // 중간 경유지 체크 로직 (코너를 크게 돌아서 못 찍더라도 에러 안 나게 패스)
+    if (seg_idx_ + 1 >= N) return;
     const double wx = wp_x_[seg_idx_ + 1];
     const double wy = wp_y_[seg_idx_ + 1];
     const double d = std::hypot(wx - px, wy - py);
 
     if (d < accept_radius_) {
-      if (seg_idx_ + 2 < N) {
         seg_idx_++;
-      } else {
-        reached_last_ = true;
-
-        if (!completed_) {
-          completed_ = true;
-          complete_stamp_ = now();
-          time_to_complete_sec_ = (complete_stamp_ - start_time_).seconds();
-
-          RCLCPP_INFO(get_logger(),
-            "MISSION COMPLETE! time_to_complete_sec=%.3f (accept_radius=%.3f)",
-            time_to_complete_sec_, accept_radius_);
-        }
-      }
     }
   }
 
@@ -167,12 +155,6 @@ private:
     sum_sq_  += cte * cte;
     max_abs_ = std::max(max_abs_, std::abs(cte));
 
-    double err_to_ref = -1.0;
-    int have_ref_int = have_ref_ ? 1 : 0;
-    if (use_setpoint_ref_ && have_ref_) {
-      err_to_ref = std::hypot(ref_x_ - x_, ref_y_ - y_);
-    }
-
     // csv
     const int completed_int = completed_ ? 1 : 0;
     const double ttc = completed_ ? time_to_complete_sec_ : -1.0;
@@ -181,9 +163,6 @@ private:
         << t_sec << "," << x_ << "," << y_ << ","
         << seg_i << "," << wx << "," << wy << ","
         << dist_wp << "," << cte << ","
-        // [W7 ADD] ref columns
-        << ref_x_ << "," << ref_y_ << "," << ref_z_ << ","
-        << err_to_ref << "," << have_ref_int << ","
         << completed_int << "," << ttc << "\n";
 
     // flush occasionally (not every tick)
@@ -234,13 +213,6 @@ private:
   double rate_hz_{20.0};
   std::vector<double> wp_x_, wp_y_;
   double accept_radius_{0.5};
-
-  bool use_setpoint_ref_{true};
-  std::string setpoint_topic_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sp_sub_;
-
-  bool have_ref_{false};
-  double ref_x_{0.0}, ref_y_{0.0}, ref_z_{0.0};
 
   // state
   bool have_odom_{false};

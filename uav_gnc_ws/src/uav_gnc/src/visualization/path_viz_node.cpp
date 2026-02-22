@@ -3,7 +3,6 @@
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <visualization_msgs/msg/marker.hpp>
-#include <deque>
 
 class PathVizNode : public rclcpp::Node
 {
@@ -17,9 +16,6 @@ public:
     frame_id_ = this->declare_parameter<std::string>("frame_id", "world");
     history_size_ = this->declare_parameter<int>("history_size", 2000);
     publish_rate_hz_ = this->declare_parameter<double>("publish_rate_hz", 10.0);
-    // use_smoothing_   = this->declare_parameter<bool>("use_smoothing", true);
-    // smooth_window_   = this->declare_parameter<int>("smooth_window", 5);      // 이동평균 창 크기
-    // min_point_dist_  = this->declare_parameter<double>("min_point_dist", 0.10); // [m] 이보다 가까우면 path에 점 추가 안 함
 
     path_.header.frame_id = frame_id_;
 
@@ -56,50 +52,6 @@ private:
 
     // history 제한
     path_.poses.push_back(ps);
-    // // 1) 너무 촘촘히 찍히면 지그재그가 더 심해 보이므로, 최소 거리 이하이면 skip
-    // if (!path_.poses.empty()) {
-    //   const auto &last = path_.poses.back().pose.position;
-    //   const double dx = ps.pose.position.x - last.x;
-    //   const double dy = ps.pose.position.y - last.y;
-    //   const double dz = ps.pose.position.z - last.z;
-    //   const double d = std::sqrt(dx*dx + dy*dy + dz*dz);
-    //   if (min_point_dist_ > 0.0 && d < min_point_dist_) {
-    //     last_pose_ = ps;
-    //     have_pose_ = true;
-    //     return;
-    //   }
-    // }
-
-    // if (use_smoothing_) {
-    //   // 2) 최근 N개 위치를 이동평균 내서 path에 넣기 (orientation은 최신값 유지)
-    //   pos_buf_x_.push_back(ps.pose.position.x);
-    //   pos_buf_y_.push_back(ps.pose.position.y);
-    //   pos_buf_z_.push_back(ps.pose.position.z);
-
-    //   const int W = std::max(1, smooth_window_);
-    //   while (static_cast<int>(pos_buf_x_.size()) > W) {
-    //     pos_buf_x_.pop_front();
-    //     pos_buf_y_.pop_front();
-    //     pos_buf_z_.pop_front();
-    //   }
-
-    //   double sx = 0.0, sy = 0.0, sz = 0.0;
-    //   for (size_t i = 0; i < pos_buf_x_.size(); ++i) {
-    //     sx += pos_buf_x_[i];
-    //     sy += pos_buf_y_[i];
-    //     sz += pos_buf_z_[i];
-    //   }
-    //   const double inv = 1.0 / std::max<size_t>(1, pos_buf_x_.size());
-    //   ps.pose.position.x = sx * inv;
-    //   ps.pose.position.y = sy * inv;
-    //   ps.pose.position.z = sz * inv;
-    // }
-
-    // // history 제한
-    // path_.poses.push_back(ps);
-    // if (history_size_ > 0 && static_cast<int>(path_.poses.size()) > history_size_) {
-    //   path_.poses.erase(path_.poses.begin(), path_.poses.begin() + (path_.poses.size() - history_size_));
-    // }
     if (history_size_ > 0 && static_cast<int>(path_.poses.size()) > history_size_) {
       path_.poses.erase(path_.poses.begin(), path_.poses.begin() + (path_.poses.size() - history_size_));
     }
@@ -150,14 +102,6 @@ private:
 
   int history_size_{2000};
   double publish_rate_hz_{10.0};
-
-  // bool use_smoothing_{true};
-  // int smooth_window_{5};
-  // double min_point_dist_{0.10};
-
-  // std::deque<double> pos_buf_x_;
-  // std::deque<double> pos_buf_y_;
-  // std::deque<double> pos_buf_z_;
 
   nav_msgs::msg::Path path_;
   geometry_msgs::msg::PoseStamped last_pose_;
