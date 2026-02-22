@@ -97,32 +97,25 @@ void advanceSegmentIfReached(double px, double py)
   {
     const size_t N = wp_x_.size();
     if (N == 0) return;
-
     // 현재 비행 시간 계산
     double t_sec = (now() - start_time_).seconds();
-
-    // [핵심 수정 포인트] 
-    // 출발점과 도착점이 같을 때 0초 만에 종료되는 것을 막기 위해, 
-    // 비행 시작 후 최소 5초가 지난 시점부터 최종 목적지 도달을 검사합니다!
+    // 출발점과 도착점이 같을 때 바로 종료됨을 막기 위해, 비행 시작 후 최소 5초가 지난 시점부터 최종 목적지 도달 검사
     const double dist_to_last = std::hypot(wp_x_.back() - px, wp_y_.back() - py);
     if (t_sec > 5.0 && dist_to_last < accept_radius_ && !completed_) {
         reached_last_ = true;
         completed_ = true;
         complete_stamp_ = now();
         time_to_complete_sec_ = t_sec;
-
         RCLCPP_INFO(get_logger(),
           "MISSION COMPLETE! Reached final destination. time=%.3f",
           time_to_complete_sec_);
         return;
     }
-
     // 중간 경유지 체크 로직 (코너를 크게 돌아서 못 찍더라도 에러 안 나게 패스)
     if (seg_idx_ + 1 >= N) return;
     const double wx = wp_x_[seg_idx_ + 1];
     const double wy = wp_y_[seg_idx_ + 1];
     const double d = std::hypot(wx - px, wy - py);
-
     if (d < accept_radius_) {
         seg_idx_++;
     }
