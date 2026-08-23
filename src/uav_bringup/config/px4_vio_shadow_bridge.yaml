@@ -1,0 +1,33 @@
+# Bridge only the Gazebo topics needed by a stereo-inertial VIO backend.
+# Use `gz topic -l | grep -E "stereo|imu"` after PX4/Gazebo startup if a
+# Gazebo version changes the derived camera_info topic names.
+- ros_topic_name: "/gazebo/imu_raw"
+  gz_topic_name: "/gazebo/imu"
+  ros_type_name: "sensor_msgs/msg/Imu"
+  gz_type_name: "gz.msgs.IMU"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/stereo/left/image_raw"
+  gz_topic_name: "/gazebo/stereo/left/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/stereo/right/image_raw"
+  gz_topic_name: "/gazebo/stereo/right/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/stereo/left/camera_info"
+  gz_topic_name: "/gazebo/stereo/left/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: "/stereo/right/camera_info"
+  gz_topic_name: "/gazebo/stereo/right/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: "GZ_TO_ROS"
+

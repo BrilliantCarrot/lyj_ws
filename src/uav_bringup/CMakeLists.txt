@@ -9,6 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(ignition-msgs8 REQUIRED)
 find_package(ignition-transport11 REQUIRED)
 
@@ -22,6 +23,14 @@ add_executable(lio_validation_trajectory_node
 
 add_executable(lio_validation_error_node
   src/lio_validation_error_node.cpp
+)
+
+add_executable(vio_odom_aligner_node
+  src/vio_odom_aligner_node.cpp
+)
+
+add_executable(vio_velocity_error_node
+  src/vio_velocity_error_node.cpp
 )
 
 ament_target_dependencies(sim_odom_to_gazebo_pose_node
@@ -40,6 +49,17 @@ ament_target_dependencies(lio_validation_error_node
   nav_msgs
 )
 
+ament_target_dependencies(vio_odom_aligner_node
+  rclcpp
+  nav_msgs
+  tf2
+)
+
+ament_target_dependencies(vio_velocity_error_node
+  rclcpp
+  nav_msgs
+)
+
 target_link_libraries(sim_odom_to_gazebo_pose_node
   ignition-msgs8::ignition-msgs8
   ignition-transport11::ignition-transport11
@@ -49,6 +69,8 @@ install(TARGETS
   sim_odom_to_gazebo_pose_node
   lio_validation_trajectory_node
   lio_validation_error_node
+  vio_odom_aligner_node
+  vio_velocity_error_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

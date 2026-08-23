@@ -1,13 +1,15 @@
 vio_interface:
   ros__parameters:
-    # Planned standard topics for a future VIO backend.
-    # Stereo VIO backends can subscribe to stereo images and /sim/imu.
+    # Standard topics for the PX4/Gazebo stereo VIO shadow pipeline.
+    # Stereo VIO backends can subscribe to stereo images and /vio/imu.
     # RGB-D odometry/SLAM backends can subscribe to RGB-D image/depth topics.
     stereo_left_image_topic: "/stereo/left/image_raw"
     stereo_right_image_topic: "/stereo/right/image_raw"
     rgbd_image_topic: "/rgbd/image_raw"
     rgbd_depth_topic: "/rgbd/depth/image_raw"
-    imu_topic: "/sim/imu"
+    stereo_left_camera_info_topic: "/stereo/left/camera_info"
+    stereo_right_camera_info_topic: "/stereo/right/camera_info"
+    imu_topic: "/vio/imu"
     output_odom_topic: "/vio/odom"
 
     # Localization manager should reject stale or jumping VIO in the same way

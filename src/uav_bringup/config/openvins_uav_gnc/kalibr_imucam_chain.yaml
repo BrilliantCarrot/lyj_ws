@@ -1,0 +1,42 @@
+%YAML:1.0
+
+# Gazebo simulation stereo calibration for the generated x500_lidar model.
+# The camera poses are relative to the auxiliary VIO/LIO IMU at
+# base_link + [0, 0, 0.02]. OpenVINS/Kalibr expects T_cam_imu, i.e. a transform
+# from IMU/body coordinates into the camera optical frame. The camera optical
+# convention used here is x-right, y-down, z-forward.
+
+cam0:
+  T_cam_imu:
+    - [0.0, -1.0, 0.0, 0.06]
+    - [0.0, 0.0, -1.0, 0.06]
+    - [1.0, 0.0, 0.0, -0.14]
+    - [0.0, 0.0, 0.0, 1.0]
+  cam_overlaps: [1]
+  camera_model: pinhole
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0]
+  distortion_model: radtan
+  intrinsics: [447.79, 447.79, 376.0, 240.0]
+  resolution: [752, 480]
+  rostopic: /stereo/left/image_raw
+  timeshift_cam_imu: 0.0
+
+cam1:
+  T_cam_imu:
+    - [0.0, -1.0, 0.0, -0.06]
+    - [0.0, 0.0, -1.0, 0.06]
+    - [1.0, 0.0, 0.0, -0.14]
+    - [0.0, 0.0, 0.0, 1.0]
+  T_cn_cnm1:
+    - [1.0, 0.0, 0.0, -0.12]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
+    - [0.0, 0.0, 0.0, 1.0]
+  cam_overlaps: [0]
+  camera_model: pinhole
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0]
+  distortion_model: radtan
+  intrinsics: [447.79, 447.79, 376.0, 240.0]
+  resolution: [752, 480]
+  rostopic: /stereo/right/image_raw
+  timeshift_cam_imu: 0.0

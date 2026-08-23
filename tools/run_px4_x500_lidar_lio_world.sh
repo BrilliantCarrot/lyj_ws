@@ -69,6 +69,26 @@ awk '
     print "      </sensor>"
     print "    </link>"
     print "    <joint name=\"lio_imu_joint\" type=\"fixed\"><parent>base_link</parent><child>lio_imu_link</child></joint>"
+    print "    <link name=\"stereo_left_link\">"
+    print "      <pose relative_to=\"base_link\">0.14 0.06 0.08 0 0 0</pose>"
+    print "      <inertial><mass>0.03</mass><inertia><ixx>0.00002</ixx><iyy>0.00002</iyy><izz>0.00002</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia></inertial>"
+    print "      <sensor name=\"stereo_left\" type=\"camera\">"
+    print "        <gz_frame_id>stereo_left</gz_frame_id>"
+    print "        <always_on>1</always_on><update_rate>30</update_rate><topic>/gazebo/stereo/left/image</topic>"
+    print "        <camera><horizontal_fov>1.39626</horizontal_fov><image><width>752</width><height>480</height><format>R8G8B8</format></image><clip><near>0.05</near><far>80</far></clip><noise><type>gaussian</type><mean>0</mean><stddev>0.005</stddev></noise></camera>"
+    print "      </sensor>"
+    print "    </link>"
+    print "    <joint name=\"stereo_left_joint\" type=\"fixed\"><parent>base_link</parent><child>stereo_left_link</child></joint>"
+    print "    <link name=\"stereo_right_link\">"
+    print "      <pose relative_to=\"base_link\">0.14 -0.06 0.08 0 0 0</pose>"
+    print "      <inertial><mass>0.03</mass><inertia><ixx>0.00002</ixx><iyy>0.00002</iyy><izz>0.00002</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia></inertial>"
+    print "      <sensor name=\"stereo_right\" type=\"camera\">"
+    print "        <gz_frame_id>stereo_right</gz_frame_id>"
+    print "        <always_on>1</always_on><update_rate>30</update_rate><topic>/gazebo/stereo/right/image</topic>"
+    print "        <camera><horizontal_fov>1.39626</horizontal_fov><image><width>752</width><height>480</height><format>R8G8B8</format></image><clip><near>0.05</near><far>80</far></clip><noise><type>gaussian</type><mean>0</mean><stddev>0.005</stddev></noise></camera>"
+    print "      </sensor>"
+    print "    </link>"
+    print "    <joint name=\"stereo_right_joint\" type=\"fixed\"><parent>base_link</parent><child>stereo_right_link</child></joint>"
     inserted = 1
   }
   { print }
@@ -84,7 +104,7 @@ cat > "$PX4_LIO_MODEL_DIR/model.config" <<'MODEL_CONFIG'
   <author>
     <name>UAV GNC Project</name>
   </author>
-  <description>PX4 x500 model with a 3D LiDAR and auxiliary IMU for FAST-LIO2 shadow validation.</description>
+  <description>PX4 x500 model with a 3D LiDAR, auxiliary IMU, and stereo camera rig for LIO/VIO shadow validation.</description>
 </model>
 MODEL_CONFIG
 
@@ -112,6 +132,7 @@ echo "PX4_GZ_MODEL_NAME=$PX4_GZ_MODEL_NAME"
 echo "PX4_GZ_WORLD=$PX4_GZ_WORLD"
 echo "PX4 x500_lidar generated from: $PX4_GZ_MODELS_DIR/x500/model.sdf"
 echo "PX4 x500_lidar model dir: $PX4_LIO_MODEL_DIR"
+echo "Sensors: 3D LiDAR /gazebo/lidar/points, IMU /gazebo/imu, stereo /gazebo/stereo/{left,right}/image"
 echo "PX4 world link: $PX4_GZ_WORLDS_DIR/uav_gnc_lio_px4.sdf -> $UAV_WORLD_FILE"
 
 cd "$PX4_DIR"

@@ -15,10 +15,15 @@ guidance_node:
     #   continuity - 기존 연속 조건 기반 7차 다항식 방식
     multi_snap_solver: "qp"
     
-    # 뾰족한 모서리를 잘라내고 진입/진출점을 명시하여 '둥근 사각형' 유도 (칠각형) + 3D 고도 추가
-    waypoints_x: [0.0, 4.0, 6.0, 6.0, 4.0, 0.0, -2.0, -2.0, 0.0]
-    waypoints_y: [0.0, 0.0, 2.0, 6.0, 8.0, 8.0, 6.0, 2.0, 0.0]
-    waypoints_z: [2.0, 1.5, 1.0, 1.5, 2.0, 1.5, 1.0, 1.5, 2.0] # z축 웨이포인트 추가함
+    # 원래 웨이포인트
+    # waypoints_x: [0.0, 4.0, 6.0, 6.0, 4.0, 0.0, -2.0, -2.0, 0.0]
+    # waypoints_y: [0.0, 0.0, 2.0, 6.0, 8.0, 8.0, 6.0, 2.0, 0.0]
+
+    # PX4 LIO/VIO world의 도로 중앙부에서 검증하기 위한 소형 루프.
+    # 집/표지판/가로등과 충돌하지 않도록 기존 넓은 루프보다 범위를 줄임.
+    waypoints_x: [0.0, 3.0, 4.0, 4.0, 0.0, -3.0, -4.0, -3.0, 0.0]
+    waypoints_y: [0.0, 0.0, 1.0, 3.0, 3.0, 3.0, 0.0, -2.0, 0.0]
+    waypoints_z: [2.0, 2.1, 2.0, 1.9, 1.8, 1.9, 2.0, 2.1, 2.0]
 
     # 6주차 (Look-ahead) 용 파라미터
     accept_radius: 3.0 # 원래 1.0          
@@ -44,5 +49,15 @@ guidance_node:
     # 마지막 짧은 구간에서 multi-snap 시작/종료 zero-velocity 조건 때문에 reference가 뒤로 휘는 것을 방지
     final_direct_guidance_wp_count: 3
     final_direct_accept_radius: 0.35
+
+    # PX4 Offboard/SITL용 phase 분리:
+    # 1) 현재 XY 근처에서 takeoff_altitude까지 먼저 상승
+    # 2) 고도 안정화 후 multi-snap mission trajectory 시작
+    takeoff_guidance_enabled: true
+    takeoff_altitude: 2.0
+    takeoff_accept_radius: 0.35
+    takeoff_xy_accept_radius: 0.8
+    takeoff_climb_speed: 0.6
+    takeoff_xy_hold_current: true
 
     use_planner: true

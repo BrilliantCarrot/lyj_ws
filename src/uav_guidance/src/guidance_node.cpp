@@ -79,6 +79,18 @@ public:
       this->declare_parameter<bool>("wait_for_start_waypoint", false);
     start_waypoint_accept_radius_ =
       this->declare_parameter<double>("start_waypoint_accept_radius", 0.35);
+    takeoff_guidance_enabled_ =
+      this->declare_parameter<bool>("takeoff_guidance_enabled", true);
+    takeoff_altitude_ =
+      this->declare_parameter<double>("takeoff_altitude", wp_z_.empty() ? 2.0 : wp_z_.front());
+    takeoff_accept_radius_ =
+      this->declare_parameter<double>("takeoff_accept_radius", 0.35);
+    takeoff_xy_accept_radius_ =
+      this->declare_parameter<double>("takeoff_xy_accept_radius", 0.8);
+    takeoff_climb_speed_ =
+      this->declare_parameter<double>("takeoff_climb_speed", 0.6);
+    takeoff_xy_hold_current_ =
+      this->declare_parameter<bool>("takeoff_xy_hold_current", true);
 
     // ---------------------------------------------------
     // 2. Pub / Sub 및 타이머 설정
@@ -178,6 +190,39 @@ private:
     return std::hypot(dx, dy, dz) <= start_waypoint_accept_radius_;
   }
 
+  bool isTakeoffComplete() const {
+    if (!takeoff_guidance_enabled_) return true;
+
+    const double target_x = takeoff_xy_hold_current_ ? takeoff_x_ : (wp_x_.empty() ? current_x_ : wp_x_.front());
+    const double target_y = takeoff_xy_hold_current_ ? takeoff_y_ : (wp_y_.empty() ? current_y_ : wp_y_.front());
+    const double xy_err = std::hypot(target_x - current_x_, target_y - current_y_);
+    const double z_err = std::abs(takeoff_altitude_ - current_z_);
+    return xy_err <= takeoff_xy_accept_radius_ && z_err <= takeoff_accept_radius_;
+  }
+
+  void fillTakeoffSetpoint(nav_msgs::msg::Odometry& sp) {
+    if (!takeoff_initialized_) {
+      takeoff_x_ = current_x_;
+      takeoff_y_ = current_y_;
+      takeoff_initialized_ = true;
+    }
+
+    const double target_x = takeoff_xy_hold_current_ ? takeoff_x_ : (wp_x_.empty() ? current_x_ : wp_x_.front());
+    const double target_y = takeoff_xy_hold_current_ ? takeoff_y_ : (wp_y_.empty() ? current_y_ : wp_y_.front());
+    const double dz = takeoff_altitude_ - current_z_;
+
+    sp.pose.pose.position.x = target_x;
+    sp.pose.pose.position.y = target_y;
+    sp.pose.pose.position.z = takeoff_altitude_;
+    sp.pose.pose.orientation = yawToQuat(current_yaw_);
+    sp.twist.twist.linear.x = 0.0;
+    sp.twist.twist.linear.y = 0.0;
+    sp.twist.twist.linear.z = std::max(-takeoff_climb_speed_, std::min(takeoff_climb_speed_, dz));
+    sp.twist.twist.angular.x = 0.0;
+    sp.twist.twist.angular.y = 0.0;
+    sp.twist.twist.angular.z = 0.0;
+  }
+
   void holdStartWaypoint(nav_msgs::msg::Odometry& sp) {
     if (wp_x_.empty()) return;
 
@@ -194,7 +239,9 @@ private:
   }
 
   void startTrajectoryIfReady() {
-    if (mission_started_ || !have_odom_ || !isNearStartWaypoint()) return;
+    if (mission_started_ || !have_odom_) return;
+    if (takeoff_guidance_enabled_ && !isTakeoffComplete()) return;
+    if (!takeoff_guidance_enabled_ && !isNearStartWaypoint()) return;
 
     if (guidance_mode_ == "min_jerk" || guidance_mode_ == "min_snap") {
       generateTrajectoryForCurrentSegment();
@@ -338,7 +385,8 @@ private:
           last_path_y_.push_back(new_y[i]);
       }
 
-      if (have_odom_ && guidance_mode_ == "multi_snap") {
+      if (have_odom_ && guidance_mode_ == "multi_snap" &&
+          (!takeoff_guidance_enabled_ || isTakeoffComplete())) {
           generateMultiSegmentTrajectory();
           last_planner_retrajectory_time_ = now;
           have_last_planner_retrajectory_time_ = true;
@@ -623,7 +671,21 @@ void publishTrajectoryPreview(double t_now) {
     sp.header.stamp = this->now();
     sp.header.frame_id = last_frame_id_.empty() ? "world" : last_frame_id_;
 
-    if (wait_for_start_waypoint_ && !mission_started_) {
+    if (!mission_started_ && takeoff_guidance_enabled_ && !isTakeoffComplete()) {
+      fillTakeoffSetpoint(sp);
+      setpoint_pub_->publish(sp);
+      if (reference_log_enabled_) {
+        RCLCPP_INFO_THROTTLE(
+          this->get_logger(), *this->get_clock(), reference_log_period_ms_,
+          "[Guidance Ref] phase=takeoff cur=(%.2f, %.2f, %.2f) takeoff_ref=(%.2f, %.2f, %.2f) |z_ref-cur_z|=%.2fm",
+          current_x_, current_y_, current_z_,
+          sp.pose.pose.position.x, sp.pose.pose.position.y, sp.pose.pose.position.z,
+          std::abs(sp.pose.pose.position.z - current_z_));
+      }
+      return;
+    }
+
+    if (wait_for_start_waypoint_ && !mission_started_ && !takeoff_guidance_enabled_) {
       holdStartWaypoint(sp);
       setpoint_pub_->publish(sp);
       if (reference_log_enabled_) {
@@ -882,6 +944,15 @@ private:
   double final_direct_accept_radius_{0.35};
   bool wait_for_start_waypoint_{false};
   double start_waypoint_accept_radius_{0.35};
+  bool takeoff_guidance_enabled_{true};
+  double takeoff_altitude_{2.0};
+  double takeoff_accept_radius_{0.35};
+  double takeoff_xy_accept_radius_{0.8};
+  double takeoff_climb_speed_{0.6};
+  bool takeoff_xy_hold_current_{true};
+  bool takeoff_initialized_{false};
+  double takeoff_x_{0.0};
+  double takeoff_y_{0.0};
   double planner_goal_x_{1e9}, planner_goal_y_{1e9};
   bool have_last_planner_retrajectory_time_{false};
   rclcpp::Time last_planner_retrajectory_time_{0, 0, RCL_ROS_TIME};

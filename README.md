@@ -1,6 +1,6 @@
 # UAV GNC System — ROS2/PX4-based Autonomous Flight
 
-> **End-to-end Guidance · Navigation · Control** system for unmanned aerial vehicles, built with ROS2 Humble, C++17, PX4 SITL, Gazebo, and FAST-LIO2.
+> **End-to-end Guidance · Navigation · Control** system for unmanned aerial vehicles, built with ROS2 Humble, C++17, PX4 SITL, Gazebo, FAST-LIO2, and OpenVINS.
 
 ---
 
@@ -11,7 +11,7 @@ This project started as a from-scratch ROS2 UAV GNC stack for studying flight dy
 Two runtime paths are maintained:
 
 - **Custom GNC simulation path:** custom 6-DOF dynamics, EKF/UKF navigation, D* Lite planning, minimum-snap guidance, and PID/MPC control.
-- **PX4 SITL integration path:** Gazebo/PX4 handles vehicle dynamics and low-level control, while this project provides ROS2 guidance, PX4 offboard setpoints, FAST-LIO2 odometry, and PX4 EKF2 external-vision fusion.
+- **PX4 SITL integration path:** Gazebo/PX4 handles vehicle dynamics and low-level control, while this project provides ROS2 guidance, PX4 offboard setpoints, FAST-LIO2/OpenVINS odometry, and PX4 EKF2 external-vision fusion.
 
 **Key highlights:**
 - 6-DOF Newton-Euler flight dynamics simulator with RK4 integration
@@ -24,6 +24,7 @@ Two runtime paths are maintained:
 - PX4 v1.16 + Gazebo Harmonic SITL offboard flight integration
 - FAST-LIO2 odometry connection to PX4 EKF2 as external vision
 - GPS-denied waypoint flight using LIO horizontal position + barometric height
+- OpenVINS stereo-inertial VIO shadow pipeline and GPS-denied PX4 EKF2 position-only fusion
 
 ---
 
@@ -68,6 +69,21 @@ Gazebo LiDAR + IMU
   -> gazebo_lidar_fastlio_adapter_node / imu_lio_adapter_node
   -> FAST-LIO2
   -> /lio/odom
+  -> lio_to_px4_visual_odometry
+  -> /fmu/in/vehicle_visual_odometry
+  -> PX4 EKF2 external vision fusion
+  -> /fmu/out/vehicle_odometry
+```
+
+### OpenVINS / PX4 EKF2 Fusion Path
+
+```text
+Gazebo stereo camera + IMU
+  -> ros_gz_bridge
+  -> OpenVINS MSCKF
+  -> /vio/odom
+  -> vio_odom_aligner_node
+  -> /vio_aligned/odom
   -> lio_to_px4_visual_odometry
   -> /fmu/in/vehicle_visual_odometry
   -> PX4 EKF2 external vision fusion
@@ -144,12 +160,20 @@ Gazebo LiDAR + IMU
 - Converts Gazebo IMU messages into `/lio/imu`.
 - Runs FAST-LIO2 in shadow mode first, then publishes `/lio/odom` into PX4 EKF2 as external vision odometry.
 
+### OpenVINS — Stereo Visual-Inertial Odometry Integration
+- Extends the PX4/Gazebo `x500_lidar` model with a stereo camera rig and VIO IMU feed.
+- Bridges Gazebo stereo image, camera info, and IMU topics into ROS2.
+- Builds OpenVINS locally under `external/openvins_install` and launches the MSCKF backend through `px4_vio_shadow.launch.py`.
+- Publishes raw VIO odometry on `/vio/odom` and frame-aligned odometry on `/vio_aligned/odom`.
+- Provides a GPS-denied PX4 fusion launch that sends aligned VIO position to PX4 EKF2 through `/fmu/in/vehicle_visual_odometry`.
+- Keeps VIO velocity and VIO height disabled by default until velocity scale, delay, and vertical consistency are validated.
+
 ### PX4 EKF2 — External Vision Fusion
-- Converts `/lio/odom` into `/fmu/in/vehicle_visual_odometry`.
+- Converts `/lio/odom` or `/vio_aligned/odom` into `/fmu/in/vehicle_visual_odometry`.
 - Applies ENU-to-NED conversion before sending odometry to PX4.
 - Supports selective fusion by publishing position only or position+velocity.
 - Keeps yaw fusion disabled by default to avoid injecting unreliable yaw into PX4 EKF2.
-- GPS-denied stable flight was achieved by fusing **LIO horizontal position** while keeping **barometric height** as the vertical reference.
+- GPS-denied stable flight was achieved with both **LIO horizontal position + barometric height** and **VIO position-only + barometric height** configurations.
 
 ### Evaluation and Visualization
 - Logs tracking error, mission completion status, and flight metrics through `tracking_eval_node`.
@@ -158,6 +182,7 @@ Gazebo LiDAR + IMU
 - Provides visualization scripts for XY trajectory, 3D trajectory, obstacle avoidance, axis-wise CTE, and localization error.
 - Generates README-ready result tables and figures for GPS-denied LiDAR-aided navigation experiments.
 - Generates PX4 GPS/LIO comparison plots: XY trajectory, 3D trajectory, and axis-wise tracking error.
+- Provides rosbag-based VIO analysis for topic rates, return error, VIO-vs-PX4 odometry RMSE, tracking RMSE, and PX4 EKF2 fusion flags.
 
 ---
 
@@ -258,6 +283,45 @@ This table excludes the takeoff transient and is more representative of waypoint
 | GPS-denied LIO + baro | 777 | 0.432 | 0.338 | 0.549 | 1.976 | 0.061 |
 
 The GPS-only case produced the lowest steady tracking RMSE in this run. GPS + LIO did not outperform GPS-only yet, which indicates that external vision covariance, timestamp alignment, delay compensation, and fusion tuning still need work. The key result is that the GPS-denied LIO + barometer case completed waypoint flight without GPS, validating the fallback architecture for GPS-denied navigation.
+
+### PX4 EKF2 + OpenVINS VIO External Vision Fusion
+
+This experiment adds a stereo-inertial VIO backend to the PX4/Gazebo workflow. Gazebo generates stereo image, camera info, and IMU topics from the `x500_lidar` model. OpenVINS estimates visual-inertial odometry, the odometry is aligned into the PX4/GNC navigation frame, and then the aligned VIO pose is sent to PX4 EKF2 as external vision.
+
+The first-pass GPS-denied configuration intentionally uses **VIO position only** and keeps **barometric height** as the vertical reference. VIO velocity and VIO height are not fused by default because early tests showed that fusing unvalidated velocity or vertical components can destabilize PX4 EKF2 during aggressive waypoint turns. This is a conservative integration strategy: validate shadow odometry first, then enable additional fusion dimensions only after delay, covariance, scale, and frame alignment are verified.
+
+#### VIO Shadow Validation
+
+![VIO Aligned Shadow Validation](images/vio_aligned_shadow_run001_analysis.png)
+
+The raw OpenVINS odometry initially used a local frame that did not match PX4 `/nav/odom`. The raw `/vio/odom` trajectory therefore appeared rotated/mirrored relative to the PX4 navigation frame. A VIO alignment node was added to estimate or apply a yaw/offset correction and publish `/vio_aligned/odom`.
+
+In this validation run, raw VIO position error against `/nav/odom` was reduced from **7.19 m RMSE** to **0.44 m RMSE** after alignment. Axis-wise aligned VIO errors were approximately **0.18 m X**, **0.16 m Y**, and **0.37 m Z**. The remaining Z mismatch is expected because the successful PX4 fusion configuration uses barometer height rather than VIO height.
+
+#### GPS-denied VIO Position-only Fusion
+
+| Metric | Value | Notes |
+|---|---:|---|
+| `/fmu/in/vehicle_visual_odometry` rate | 43.82 Hz | Rate-limited external vision input from aligned VIO |
+| `/vio_aligned/odom` rate | 200.02 Hz | OpenVINS aligned odometry output |
+| `nav_vs_vio_position` RMSE | 0.193 m | PX4 EKF2 odometry vs aligned VIO relative position |
+| `nav_tracking_setpoint` RMSE | 0.839 m | PX4 `/nav/odom` vs guidance setpoint over the recorded mission |
+| VIO velocity RMSE | 1.977 m/s | Too large for safe velocity fusion in this run |
+| GPS fusion flags | OFF | `cs_gnss_pos=false`, `cs_gnss_vel=false`, `cs_gps_hgt=false` |
+| External vision position flag | ON | `cs_ev_pos=true` |
+| External vision velocity/height flags | OFF | `cs_ev_vel=false`, `cs_ev_hgt=false` |
+| Height source | Barometer | `cs_baro_hgt=true` |
+
+The GPS-denied VIO position-only run completed waypoint flight without GNSS position or velocity fusion. The validated configuration was:
+
+```text
+IMU propagation
++ VIO external-vision horizontal/position correction
++ barometer height
++ PX4 internal position/velocity/attitude/rate controllers
+```
+
+The result demonstrates a working GPS-denied VIO-to-PX4 EKF2 integration path, but it should not be interpreted as final VIO tuning. The current limitations are known: return-to-origin error needs longer settle-time validation, velocity fusion is not yet reliable, and VIO height does not yet match the PX4 vertical reference closely enough to replace barometer height.
 
 ### Key Findings — MPC vs PID Analysis
 
@@ -444,6 +508,108 @@ Plot PX4 GPS/LIO comparison results:
 /home/lyj/venv/myvenv/bin/python3 plot_px4_lio_3d_comparison.py
 ```
 
+### PX4 SITL + OpenVINS VIO Run
+
+The VIO path uses the same PX4/Gazebo `x500_lidar` model, but consumes stereo image, camera info, and IMU topics instead of LiDAR point clouds. OpenVINS must be built and sourced separately before enabling `start_openvins:=true`.
+
+Build OpenVINS locally:
+
+```bash
+cd ~/uav_gnc_ws
+bash tools/build_openvins_ros2.sh
+source install/setup.bash
+source external/openvins_install/setup.bash
+```
+
+Terminal 1, PX4/Gazebo:
+
+```bash
+cd ~/uav_gnc_ws
+./tools/run_px4_x500_lidar_lio_world.sh
+```
+
+Terminal 2, Micro XRCE-DDS Agent:
+
+```bash
+MicroXRCEAgent udp4 -p 8888
+```
+
+Terminal 3, PX4 offboard guidance bridge:
+
+```bash
+source ~/px4_msgs_ws/install/setup.bash
+source ~/uav_gnc_ws/install/setup.bash
+ros2 launch uav_px4_bridge px4_bringup.launch.py
+```
+
+Terminal 4, VIO shadow pipeline without PX4 EKF2 fusion:
+
+```bash
+source ~/uav_gnc_ws/install/setup.bash
+source ~/uav_gnc_ws/external/openvins_install/setup.bash
+ros2 launch uav_bringup px4_vio_shadow.launch.py start_openvins:=true
+```
+
+Terminal 4, GPS-denied VIO position-only fusion:
+
+```bash
+source ~/uav_gnc_ws/install/setup.bash
+source ~/uav_gnc_ws/external/openvins_install/setup.bash
+ros2 launch uav_bringup px4_vio_gps_denied_fusion.launch.py publish_vio_velocity:=false
+```
+
+Recommended PX4 shell sequence for GPS-denied VIO validation:
+
+```bash
+# Start with GPS enabled so PX4 can initialize and arm normally.
+param set EKF2_GPS_CTRL 15
+param set EKF2_EV_CTRL 1
+param set EKF2_EV_NOISE_MD 0
+param set EKF2_HGT_REF 0
+param set COM_RCL_EXCEPT 4
+param set NAV_RCL_ACT 0
+param set NAV_DLL_ACT 0
+param set COM_DISARM_PRFLT 0
+
+commander mode offboard
+commander arm --force
+
+# After VIO is publishing and cs_ev_pos=true, disable GPS fusion.
+param set EKF2_GPS_CTRL 0
+```
+
+Check GPS-denied VIO fusion flags:
+
+```bash
+ros2 topic hz /vio/odom
+ros2 topic hz /vio_aligned/odom
+ros2 topic hz /fmu/in/vehicle_visual_odometry
+ros2 topic echo /fmu/out/estimator_status_flags --once
+```
+
+Expected GPS-denied VIO position-only flags:
+
+```text
+cs_gnss_pos: false
+cs_gnss_vel: false
+cs_gps_hgt: false
+cs_ev_pos: true
+cs_ev_vel: false
+cs_ev_hgt: false
+cs_baro_hgt: true
+reject_hor_pos: false
+reject_ver_pos: false
+```
+
+Analyze a recorded VIO GPS-denied rosbag:
+
+```bash
+source ~/uav_gnc_ws/install/setup.bash
+python3 tools/analyze_vio_gps_denied_bag.py \
+  bags/vio_gps_denied_position_only/run_001 \
+  --csv eval/vio_gps_denied_position_only_run001_summary.csv
+```
+
 ### Configuration Files
 
 | File | Key Parameters |
@@ -462,8 +628,12 @@ Plot PX4 GPS/LIO comparison results:
 | `src/uav_bringup/config/px4_lio_shadow_bridge.yaml` | Gazebo LiDAR/IMU to ROS2 bridge topics for PX4 LIO tests |
 | `src/uav_bringup/config/gz_lio_vio_bridge.yaml` | Gazebo LiDAR/IMU/stereo/RGB-D bridge topics for LIO/VIO environment tests |
 | `src/uav_bringup/config/vio_interface.yaml` | VIO backend interface contract and expected topics |
+| `src/uav_bringup/config/px4_vio_shadow_bridge.yaml` | Gazebo stereo camera/camera_info/IMU bridge topics for OpenVINS tests |
+| `src/uav_bringup/config/openvins_uav_gnc/estimator_config.yaml` | OpenVINS/MSCKF estimator settings for the Gazebo stereo rig |
+| `src/uav_bringup/config/openvins_uav_gnc/kalibr_imucam_chain.yaml` | Kalibr-style stereo camera and IMU extrinsic/intrinsic configuration |
+| `src/uav_bringup/config/openvins_uav_gnc/kalibr_imu_chain.yaml` | OpenVINS-compatible IMU/camera chain entry point |
 | `src/uav_bringup/worlds/uav_gnc_lio_px4.world.sdf` | PX4/Gazebo LIO-friendly outdoor test world |
-| `src/uav_bringup/models/x500_lidar/model.sdf` | PX4 x500 model extended with LiDAR/IMU sensors |
+| `src/uav_bringup/models/x500_lidar/model.sdf` | PX4 x500 model extended with LiDAR, stereo camera, and IMU sensors |
 
 ---
 
@@ -477,15 +647,17 @@ uav_gnc_ws/
 │   ├── uav_guidance/       # Multi-segment minimum-snap trajectory generation and setpoint publisher
 │   ├── uav_control/        # Cascaded PID and condensed linear MPC control
 │   ├── uav_planning/       # D* Lite planner and occupancy-grid path generation
-│   ├── uav_perception/     # Virtual LiDAR, occupancy projection, Gazebo LiDAR/IMU adapters
-│   ├── uav_px4_bridge/     # PX4 odometry conversion, offboard setpoint bridge, LIO external vision bridge
-│   ├── uav_bringup/        # Launch files, PX4/LIO worlds, sensor models, bridge configs
+│   ├── uav_perception/     # Virtual LiDAR, occupancy projection, Gazebo LiDAR/IMU/VIO adapters
+│   ├── uav_px4_bridge/     # PX4 odometry conversion, offboard setpoint bridge, LIO/VIO external vision bridge
+│   ├── uav_bringup/        # Launch files, PX4/LIO/VIO worlds, sensor models, bridge configs
 │   ├── uav_evaluation/     # Tracking RMSE, planning path, and PX4 LIO comparison loggers
 │   ├── uav_visualization/  # RViz path and marker visualization
 │   └── uav_rl/             # PPO residual RL training/evaluation and ROS2 guidance wrapper
 ├── tools/
 │   ├── build_fast_lio2_ros2.sh
-│   └── run_px4_x500_lidar_lio_world.sh
+│   ├── build_openvins_ros2.sh
+│   ├── run_px4_x500_lidar_lio_world.sh
+│   └── analyze_vio_gps_denied_bag.py
 ├── plot_result.py
 ├── plot_lidar_nav_results.py
 └── plot_px4_lio_3d_comparison.py
@@ -505,9 +677,10 @@ uav_gnc_ws/
 - **SITL:** PX4 v1.16, Gazebo Harmonic
 - **Linear Algebra:** Eigen3
 - **LiDAR Odometry:** FAST-LIO2
+- **Visual-Inertial Odometry:** OpenVINS / MSCKF
 - **Point Cloud Processing:** PCL / PointCloud2
 - **Planning:** D* Lite, 2.5D occupancy grid
-- **State Estimation:** Error-State EKF, UKF, PX4 EKF2 external vision fusion, LiDAR-aided pose correction
+- **State Estimation:** Error-State EKF, UKF, PX4 EKF2 external vision fusion, LiDAR-aided pose correction, VIO position-only fusion
 - **Visualization:** RViz2, rqt_graph, Matplotlib
 - **Build System:** colcon / CMake
 
@@ -516,8 +689,10 @@ uav_gnc_ws/
 ## Future Work
 
 - **PX4 EKF2 fusion tuning:** tune external vision covariance, delay, timestamp handling, and selective velocity fusion for tighter GPS+LIO performance.
-- **VIO backend integration:** connect stereo/RGB-D Gazebo camera topics to a VIO backend and compare LIO/VIO/GPS fusion.
+- **VIO fusion tuning:** improve OpenVINS calibration, timestamp alignment, covariance, velocity quality, and vertical consistency before enabling VIO velocity/height fusion.
+- **LIO/VIO comparison:** run repeated GPS-denied trials with FAST-LIO2, OpenVINS, and GPS baselines under identical trajectories and fixed random seeds.
 - **Full 3D planning:** extend the current 2.5D occupancy grid into a 3D voxel-based planner for altitude-aware obstacle avoidance.
+- **Swarm autonomy:** add a multi-UAV formation/coordination module with communication delay/dropout, collision avoidance, and MARL-ready interfaces.
 - **Custom controller on PX4:** extend offboard experiments from position/velocity setpoints toward velocity, attitude, or rate-level control.
 - **MPC + RL:** reinforcement learning for adaptive guidance/control residuals and Q/R matrix tuning.
 
@@ -533,8 +708,9 @@ uav_gnc_ws/
 6. Rusu and Cousins, "3D is here: Point Cloud Library (PCL)," *IEEE International Conference on Robotics and Automation*, 2011  
 7. Shan et al., "LIO-SAM: Tightly-coupled Lidar Inertial Odometry via Smoothing and Mapping," *IROS 2020*  
 8. Xu and Zhang, "FAST-LIO: A Fast, Robust LiDAR-inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter," *IEEE Robotics and Automation Letters*, 2021  
-9. ROS2 Documentation, "Understanding ROS2 Topics, Launch Files, and rqt_graph"  
-10. Point Cloud Library Documentation, "Filtering, VoxelGrid, and PointCloud Processing Tutorials"  
+9. Geneva et al., "OpenVINS: A Research Platform for Visual-Inertial Estimation," *ICRA 2020*  
+10. ROS2 Documentation, "Understanding ROS2 Topics, Launch Files, and rqt_graph"  
+11. Point Cloud Library Documentation, "Filtering, VoxelGrid, and PointCloud Processing Tutorials"  
 
 ---
 

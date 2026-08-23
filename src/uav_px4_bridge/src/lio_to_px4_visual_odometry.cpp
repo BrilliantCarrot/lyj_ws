@@ -18,6 +18,7 @@ public:
       "output_topic", "/fmu/in/vehicle_visual_odometry");
     publish_orientation_ = declare_parameter<bool>("publish_orientation", false);
     publish_velocity_ = declare_parameter<bool>("publish_velocity", true);
+    publish_rate_hz_ = declare_parameter<double>("publish_rate_hz", 0.0);
     position_variance_ = declare_parameter<double>("position_variance", 0.04);
     orientation_variance_ = declare_parameter<double>("orientation_variance", 0.04);
     velocity_variance_ = declare_parameter<double>("velocity_variance", 0.09);
@@ -32,9 +33,11 @@ public:
 
     RCLCPP_INFO(
       get_logger(),
-      "LIO -> PX4 visual odometry: %s -> %s, position/velocity ENU->NED, orientation=%s",
+      "LIO -> PX4 visual odometry: %s -> %s, position/velocity ENU->NED, orientation=%s, velocity=%s, rate_limit=%.1fHz",
       input_topic_.c_str(), output_topic_.c_str(),
-      publish_orientation_ ? "enabled" : "disabled");
+      publish_orientation_ ? "enabled" : "disabled",
+      publish_velocity_ ? "enabled" : "disabled",
+      publish_rate_hz_);
   }
 
 private:
@@ -45,9 +48,18 @@ private:
 
   void publishPx4VisualOdometry(const nav_msgs::msg::Odometry & odom)
   {
+    const rclcpp::Time now = get_clock()->now();
+    if (publish_rate_hz_ > 0.0 && last_publish_time_.nanoseconds() > 0) {
+      const double dt = (now - last_publish_time_).seconds();
+      if (dt < (1.0 / publish_rate_hz_)) {
+        return;
+      }
+    }
+    last_publish_time_ = now;
+
     px4_msgs::msg::VehicleOdometry px4_msg{};
 
-    const uint64_t now_us = static_cast<uint64_t>(get_clock()->now().nanoseconds() / 1000);
+    const uint64_t now_us = static_cast<uint64_t>(now.nanoseconds() / 1000);
     px4_msg.timestamp = now_us;
     px4_msg.timestamp_sample = now_us;
 
@@ -118,10 +130,12 @@ private:
   std::string output_topic_;
   bool publish_orientation_{false};
   bool publish_velocity_{true};
+  double publish_rate_hz_{0.0};
   double position_variance_{0.04};
   double orientation_variance_{0.04};
   double velocity_variance_{0.09};
   int quality_{100};
+  rclcpp::Time last_publish_time_{0, 0, RCL_ROS_TIME};
 
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr lio_sub_;
   rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_ev_pub_;
