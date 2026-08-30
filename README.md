@@ -25,6 +25,8 @@ Two runtime paths are maintained:
 - FAST-LIO2 odometry connection to PX4 EKF2 as external vision
 - GPS-denied waypoint flight using LIO horizontal position + barometric height
 - OpenVINS stereo-inertial VIO shadow pipeline and GPS-denied PX4 EKF2 position-only fusion
+- Multi-UAV swarm autonomy module with formation control, communication delay/dropout, dynamic obstacle avoidance, task allocation, and RViz visualization
+- MARL-ready swarm environment with observation/action/reward definitions, scripted baseline policies, randomized scenario evaluation, and policy comparison plots
 
 ---
 
@@ -88,6 +90,31 @@ Gazebo stereo camera + IMU
   -> /fmu/in/vehicle_visual_odometry
   -> PX4 EKF2 external vision fusion
   -> /fmu/out/vehicle_odometry
+```
+
+### Swarm Autonomy Runtime Path
+
+```text
+swarm_sim_node
+  -> /swarm/agent_i/odom
+  -> swarm_controller_node / swarm_task_manager_node
+  -> /swarm/agent_i/cmd_accel or /swarm/agent_i/mission_goal
+  -> swarm_comm_node
+  -> communication delay/dropout simulation
+  -> swarm_eval_node
+  -> formation RMSE, min inter-agent distance, collision metrics
+  -> swarm_viz_node
+  -> RViz MarkerArray visualization
+```
+
+### Swarm MARL Baseline Path
+
+```text
+SwarmMARLEnv
+  -> multi-agent observation/action/reward/termination
+  -> scripted baseline policies
+  -> randomized scenario rollouts
+  -> CSV summaries and trajectory plots
 ```
 
 ---
@@ -175,6 +202,26 @@ Gazebo stereo camera + IMU
 - Keeps yaw fusion disabled by default to avoid injecting unreliable yaw into PX4 EKF2.
 - GPS-denied stable flight was achieved with both **LIO horizontal position + barometric height** and **VIO position-only + barometric height** configurations.
 
+### Swarm Autonomy — Formation, Communication, and Task Allocation
+- Adds a ROS2 `uav_swarm` package for multi-agent UAV coordination experiments.
+- Simulates multiple 3D point-mass UAV agents with bounded acceleration and velocity.
+- Supports leader-follower formation flight with configurable formation offsets.
+- Provides parent-graph and neighbor-limited formation control for comparing centralized and local interaction structures.
+- Simulates communication delay/dropout through a dedicated communication layer.
+- Adds static and dynamic obstacle visualization and avoidance logic.
+- Implements mission command switching for formation, task allocation, reset, and pause/resume workflows.
+- Implements greedy and auction-style task allocation baselines with per-agent mission goals.
+- Publishes RViz markers for agents, paths, formation edges, tasks, goals, and obstacles.
+
+### Swarm MARL — Gymnasium-style Baseline Environment
+- Adds a ROS-free `SwarmMARLEnv` that can later be wrapped by Gymnasium, PettingZoo, RLlib, or custom MARL trainers.
+- Defines per-agent observations using position, velocity, relative goal, nearest obstacle, and nearest neighbor features.
+- Defines 3D acceleration actions with acceleration and speed limits.
+- Defines reward terms for goal tracking, formation keeping, control effort, collision penalties, obstacle penalties, and success bonus.
+- Provides scripted baselines: random, goal seeking, obstacle-aware goal seeking, formation, formation waypoint, obstacle-aware formation waypoint, and formation-aware formation waypoint.
+- Supports randomized scenario evaluation by jittering starts, goals, waypoints, obstacles, and obstacle radii.
+- Adds formation-aware waypoint planning that inflates obstacles by the formation footprint so the whole swarm can pass safely, not only the leader.
+
 ### Evaluation and Visualization
 - Logs tracking error, mission completion status, and flight metrics through `tracking_eval_node`.
 - Logs actual D* Lite path keypoints through `planning_path_logger_node`.
@@ -183,6 +230,8 @@ Gazebo stereo camera + IMU
 - Generates README-ready result tables and figures for GPS-denied LiDAR-aided navigation experiments.
 - Generates PX4 GPS/LIO comparison plots: XY trajectory, 3D trajectory, and axis-wise tracking error.
 - Provides rosbag-based VIO analysis for topic rates, return error, VIO-vs-PX4 odometry RMSE, tracking RMSE, and PX4 EKF2 fusion flags.
+- Logs swarm formation RMSE, minimum inter-agent distance, agent-agent collisions, obstacle collisions, task completion, and MARL rollout metrics.
+- Generates swarm MARL policy comparison and representative trajectory plots.
 
 ---
 
@@ -323,6 +372,32 @@ IMU propagation
 
 The result demonstrates a working GPS-denied VIO-to-PX4 EKF2 integration path, but it should not be interpreted as final VIO tuning. The current limitations are known: return-to-origin error needs longer settle-time validation, velocity fusion is not yet reliable, and VIO height does not yet match the PX4 vertical reference closely enough to replace barometer height.
 
+### Swarm MARL Baseline Policy Comparison
+
+This experiment evaluates scripted multi-agent baseline policies in the ROS-free `SwarmMARLEnv`. The goal is not to claim a trained MARL policy yet, but to establish a MARL-ready environment with reproducible observation/action/reward definitions, randomized scenarios, safety metrics, and visualization.
+
+![Swarm MARL Policy Comparison](images/swarm_marl_policy_compare.png)
+
+The comparison includes naive policies, obstacle-aware policies, and a formation-aware waypoint planner. The formation-aware planner expands obstacle checks by the swarm formation footprint, then inserts detour waypoints so the leader path is safe for the whole formation.
+
+![Swarm MARL Representative Trajectories](images/swarm_marl_trajectories.png)
+
+#### Randomized Scenario Summary
+
+| Policy | Episodes | Success Rate | Obstacle Collisions | Agent Collisions | Formation RMSE [m] | Final Goal Error [m] | Time [s] | Key Result |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Random | 20 | 0.00 | 0.45 | 0.00 | 7.408 | 10.461 | 10.737 | Uncontrolled baseline fails |
+| Goal seeking | 20 | 0.00 | 1.00 | 0.00 | 0.425 | 7.399 | 0.918 | Direct goal pursuit collides with obstacles |
+| Obstacle-aware goal seeking | 20 | 1.00 | 0.00 | 0.00 | 0.603 | 0.265 | 8.133 | Best individual-goal baseline |
+| Formation | 20 | 0.05 | 0.95 | 0.00 | 0.893 | 6.439 | 1.915 | Formation alone is not obstacle-safe |
+| Formation waypoint | 20 | 0.00 | 1.00 | 0.00 | 0.558 | 2.133 | 3.055 | Leader waypoint following collides without avoidance |
+| Obstacle-aware formation waypoint | 20 | 0.65 | 0.35 | 0.00 | 0.922 | 1.321 | 19.655 | Local avoidance helps but still misses some formation-level collisions |
+| Formation-aware formation waypoint | 20 | 1.00 | 0.00 | 0.00 | 1.082 | 1.149 | 29.075 | Safest formation waypoint baseline; slower and more conservative |
+
+The important result is the difference between local obstacle-aware formation control and formation-aware planning. Agent-level obstacle avoidance improved the mission but still produced follower collisions in some randomized cases. Formation-aware planning increased mission time and slightly increased formation RMSE, but improved randomized waypoint mission success from **65% to 100%** and reduced obstacle collisions from **35% to 0%**.
+
+This is a baseline/mock MARL stage: the environment, policies, metrics, and plots are implemented, but no neural MARL training has been performed yet.
+
 ### Key Findings — MPC vs PID Analysis
 
 Under ideal (no-wind) conditions, Linear MPC and Cascaded PID perform comparably. Under constant wind disturbance, PID outperforms MPC due to its integral term absorbing the persistent bias. The MPC failure root cause was identified as **time-parameterization mismatch**: the guidance publishes time-indexed setpoints at 20 Hz while MPC at 100 Hz aggressively chases each setpoint, consistently overshooting the guidance schedule.
@@ -420,6 +495,65 @@ python3 plot_result.py
 
 # Plot LiDAR-aided navigation results
 python3 plot_lidar_nav_results.py --base-dir ~/uav_gnc_ws
+```
+
+### Swarm Autonomy Run
+
+Run the ROS2 swarm formation, communication, task allocation, obstacle, and RViz visualization demo:
+
+```bash
+cd ~/uav_gnc_ws
+source install/setup.bash
+ros2 launch uav_swarm swarm_demo.launch.py
+```
+
+Optional keyboard command terminal:
+
+```bash
+source ~/uav_gnc_ws/install/setup.bash
+ros2 run uav_swarm swarm_keyboard_command_node
+```
+
+Common mission commands:
+
+```bash
+ros2 topic pub --once /swarm/mission_command std_msgs/msg/String "{data: formation}"
+ros2 topic pub --once /swarm/mission_command std_msgs/msg/String "{data: task_allocation}"
+ros2 topic pub --once /swarm/mission_command std_msgs/msg/String "{data: reset_tasks}"
+```
+
+Compare communication/topology experiments:
+
+```bash
+bash tools/run_swarm_obstacle_compare.sh
+```
+
+### Swarm MARL Baseline Run
+
+Run a live MARL-style rollout with RViz-compatible odometry/markers:
+
+```bash
+cd ~/uav_gnc_ws
+source install/setup.bash
+ros2 launch uav_swarm swarm_marl_demo.launch.py policy:=formation_aware_formation_waypoint
+```
+
+Compare scripted policies over randomized scenarios:
+
+```bash
+ros2 run uav_swarm swarm_marl_compare --episodes 20 --randomize-scenarios
+```
+
+Plot policy summary:
+
+```bash
+python3 plot_swarm_marl_policy_compare.py
+```
+
+Plot representative XY trajectories:
+
+```bash
+python3 plot_swarm_marl_trajectories.py --randomize-scenario
 ```
 
 ### PX4 SITL + FAST-LIO2 Run
@@ -634,6 +768,8 @@ python3 tools/analyze_vio_gps_denied_bag.py \
 | `src/uav_bringup/config/openvins_uav_gnc/kalibr_imu_chain.yaml` | OpenVINS-compatible IMU/camera chain entry point |
 | `src/uav_bringup/worlds/uav_gnc_lio_px4.world.sdf` | PX4/Gazebo LIO-friendly outdoor test world |
 | `src/uav_bringup/models/x500_lidar/model.sdf` | PX4 x500 model extended with LiDAR, stereo camera, and IMU sensors |
+| `src/uav_swarm/config/swarm_demo.yaml` | Multi-UAV formation, communication, task allocation, dynamic obstacle, and evaluation settings |
+| `src/uav_swarm/config/swarm_marl.yaml` | MARL environment, reward, policy rollout, randomized scenario, and obstacle/formation-aware baseline settings |
 
 ---
 
@@ -652,15 +788,19 @@ uav_gnc_ws/
 │   ├── uav_bringup/        # Launch files, PX4/LIO/VIO worlds, sensor models, bridge configs
 │   ├── uav_evaluation/     # Tracking RMSE, planning path, and PX4 LIO comparison loggers
 │   ├── uav_visualization/  # RViz path and marker visualization
+│   ├── uav_swarm/          # Multi-UAV formation, communication, task allocation, MARL-ready env, and RViz visualization
 │   └── uav_rl/             # PPO residual RL training/evaluation and ROS2 guidance wrapper
 ├── tools/
 │   ├── build_fast_lio2_ros2.sh
 │   ├── build_openvins_ros2.sh
 │   ├── run_px4_x500_lidar_lio_world.sh
+│   ├── run_swarm_obstacle_compare.sh
 │   └── analyze_vio_gps_denied_bag.py
 ├── plot_result.py
 ├── plot_lidar_nav_results.py
-└── plot_px4_lio_3d_comparison.py
+├── plot_px4_lio_3d_comparison.py
+├── plot_swarm_marl_policy_compare.py
+└── plot_swarm_marl_trajectories.py
 ```
 
 ---
@@ -681,6 +821,7 @@ uav_gnc_ws/
 - **Point Cloud Processing:** PCL / PointCloud2
 - **Planning:** D* Lite, 2.5D occupancy grid
 - **State Estimation:** Error-State EKF, UKF, PX4 EKF2 external vision fusion, LiDAR-aided pose correction, VIO position-only fusion
+- **Swarm:** Leader-follower formation, graph-limited control, communication delay/dropout, task allocation, scripted MARL baselines
 - **Visualization:** RViz2, rqt_graph, Matplotlib
 - **Build System:** colcon / CMake
 
@@ -692,7 +833,8 @@ uav_gnc_ws/
 - **VIO fusion tuning:** improve OpenVINS calibration, timestamp alignment, covariance, velocity quality, and vertical consistency before enabling VIO velocity/height fusion.
 - **LIO/VIO comparison:** run repeated GPS-denied trials with FAST-LIO2, OpenVINS, and GPS baselines under identical trajectories and fixed random seeds.
 - **Full 3D planning:** extend the current 2.5D occupancy grid into a 3D voxel-based planner for altitude-aware obstacle avoidance.
-- **Swarm autonomy:** add a multi-UAV formation/coordination module with communication delay/dropout, collision avoidance, and MARL-ready interfaces.
+- **Swarm autonomy:** extend the current swarm module toward distributed task allocation, consensus-based bundle allocation, richer dynamic-obstacle scenarios, and PX4/Gazebo multi-vehicle validation.
+- **MARL training:** wrap `SwarmMARLEnv` with Gymnasium/PettingZoo spaces and connect MAPPO/MADDPG-style learners after the scripted baselines are fully validated.
 - **Custom controller on PX4:** extend offboard experiments from position/velocity setpoints toward velocity, attitude, or rate-level control.
 - **MPC + RL:** reinforcement learning for adaptive guidance/control residuals and Q/R matrix tuning.
 

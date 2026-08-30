@@ -1,0 +1,88 @@
+/**:
+  ros__parameters:
+    agent_count: 5
+    world_frame: "world"
+    env_rate_hz: 30.0
+    viz_rate_hz: 20.0
+
+    policy: "goal_seeking"
+    auto_reset: true
+    max_episode_steps: 1200
+    marl_seed: 11
+
+    max_accel_mps2: 2.0
+    max_speed_mps: 2.0
+    min_altitude_m: 0.2
+    boundary_m: 12.0
+    goal_radius_m: 0.45
+    waypoint_radius_m: 0.45
+    collision_radius_m: 0.35
+    safety_radius_m: 0.7
+    obstacle_collision_margin_m: 0.25
+    terminate_on_agent_collision: true
+    terminate_on_obstacle_collision: true
+    obstacle_avoidance_activation_margin_m: 2.0
+    obstacle_avoidance_gain: 1.4
+    obstacle_avoidance_tangent_gain: 0.8
+    obstacle_detour_clearance_m: 1.4
+    obstacle_detour_altitude_margin_m: 0.8
+    formation_footprint_margin_m: 0.35
+    formation_footprint_scale: 0.60
+    agent_separation_activation_m: 1.0
+    agent_separation_gain: 1.2
+    randomize_scenario: false
+    initial_position_jitter_m: 0.25
+    goal_position_jitter_m: 0.45
+    obstacle_position_jitter_m: 0.35
+    obstacle_radius_jitter_m: 0.10
+
+    initial_positions:
+      [0.0, 0.0, 1.5,
+       -1.0, 1.0, 1.5,
+       -1.0, -1.0, 1.5,
+       -2.0, 2.0, 1.5,
+       -2.0, -2.0, 1.5]
+
+    formation_offsets:
+      [0.0, 0.0, 0.0,
+       -1.2, 1.0, 0.0,
+       -1.2, -1.0, 0.0,
+       -2.4, 1.8, 0.0,
+       -2.4, -1.8, 0.0]
+    formation_parent_indices: [0, 0, 0, 1, 2]
+    formation_edges:
+      [0, 1,
+       0, 2,
+       1, 3,
+       2, 4,
+       1, 2,
+       3, 4]
+    formation_control_topology: "parent_graph"
+
+    marl_goals:
+      [6.0, 6.0, 2.0,
+       4.8, 7.0, 2.0,
+       4.8, 5.0, 2.0,
+       3.6, 7.8, 2.0,
+       3.6, 4.2, 2.0]
+
+    marl_leader_waypoints:
+      [0.0, 0.0, 1.5,
+       6.0, 0.0, 2.0,
+       6.0, 5.0, 2.0,
+       0.5, 5.5, 2.0,
+       0.0, 0.0, 1.5]
+
+    static_obstacles:
+      [3.8, 0.8, 1.8, 0.60,
+       7.1, 5.0, 3.1, 0.65,
+       -0.8, 3.1, 1.8, 0.55]
+    reward_goal_weight: 1.0
+    reward_formation_weight: 0.35
+    reward_control_weight: 0.02
+    reward_collision_penalty: 25.0
+    reward_obstacle_penalty: 20.0
+    reward_success_bonus: 10.0
+    reward_boundary_penalty: 15.0
+
+    marl_metrics_csv: "eval/swarm/marl_rollout_metrics.csv"
